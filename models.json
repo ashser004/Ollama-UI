@@ -1,0 +1,281 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-04-03",
+  "models": [
+    {
+      "name": "Tinyllama",
+      "tag": "tinyllama",
+      "size_gb": 0.6,
+      "min_ram_gb": 2,
+      "description": "Compact 1.1B model. Great for testing and quick Q&A on low-end hardware.",
+      "capabilities": ["chat"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 2048
+    },
+    {
+      "name": "Phi-3 Mini",
+      "tag": "phi3:mini",
+      "size_gb": 2.2,
+      "min_ram_gb": 4,
+      "description": "Microsoft's efficient 3.8B model. Strong reasoning and coding for its size.",
+      "capabilities": ["chat", "coding", "reasoning"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 4096
+    },
+    {
+      "name": "Gemma 2 2B",
+      "tag": "gemma2:2b",
+      "size_gb": 1.6,
+      "min_ram_gb": 4,
+      "description": "Google's lightweight 2B model. Fast, efficient general-purpose assistant.",
+      "capabilities": ["chat", "reasoning"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "Gemma 3 4B",
+      "tag": "gemma3:4b",
+      "size_gb": 3.0,
+      "min_ram_gb": 6,
+      "description": "Google's 4B multimodal model. Supports text and image inputs.",
+      "capabilities": ["chat", "reasoning", "vision"],
+      "supports_images": true,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "Qwen 2.5 3B",
+      "tag": "qwen2.5:3b",
+      "size_gb": 2.0,
+      "min_ram_gb": 4,
+      "description": "Alibaba's multilingual 3B model. Strong at coding and conversation.",
+      "capabilities": ["chat", "coding"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 4096
+    },
+    {
+      "name": "Qwen 2.5 7B",
+      "tag": "qwen2.5:7b",
+      "size_gb": 4.7,
+      "min_ram_gb": 8,
+      "description": "Alibaba's 7B model. Excellent balance of speed, coding, and reasoning.",
+      "capabilities": ["chat", "coding", "reasoning"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "Qwen 3 4B",
+      "tag": "qwen3:4b",
+      "size_gb": 2.6,
+      "min_ram_gb": 6,
+      "description": "Latest Qwen 4B model with hybrid thinking. Excellent for code and logic.",
+      "capabilities": ["chat", "coding", "reasoning"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "Qwen 3 8B",
+      "tag": "qwen3:8b",
+      "size_gb": 5.2,
+      "min_ram_gb": 8,
+      "description": "Powerful 8B reasoning model. Competitive with much larger models.",
+      "capabilities": ["chat", "coding", "reasoning"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "Mistral 7B",
+      "tag": "mistral",
+      "size_gb": 4.1,
+      "min_ram_gb": 8,
+      "description": "Fast, reliable 7B model. Excellent for everyday chat and general tasks.",
+      "capabilities": ["chat"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "Llama 3.2 1B",
+      "tag": "llama3.2:1b",
+      "size_gb": 0.7,
+      "min_ram_gb": 2,
+      "description": "Meta's ultra-light 1B model. Fast responses, good for basic tasks.",
+      "capabilities": ["chat"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 4096
+    },
+    {
+      "name": "Llama 3.2 3B",
+      "tag": "llama3.2:3b",
+      "size_gb": 2.0,
+      "min_ram_gb": 4,
+      "description": "Meta's efficient 3B model. Balanced speed and quality for chat.",
+      "capabilities": ["chat", "reasoning"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 4096
+    },
+    {
+      "name": "Llama 3.1 8B",
+      "tag": "llama3.1:8b",
+      "size_gb": 4.7,
+      "min_ram_gb": 8,
+      "description": "Meta's general-purpose 8B model. Strong at coding, chat, and reasoning.",
+      "capabilities": ["chat", "coding", "reasoning"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "CodeLlama 7B",
+      "tag": "codellama:7b",
+      "size_gb": 3.8,
+      "min_ram_gb": 8,
+      "description": "Meta's code-specialized model. Built for code generation and completion.",
+      "capabilities": ["coding"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 4096
+    },
+    {
+      "name": "DeepSeek R1 1.5B",
+      "tag": "deepseek-r1:1.5b",
+      "size_gb": 1.1,
+      "min_ram_gb": 4,
+      "description": "Distilled reasoning model. Shows step-by-step thinking at tiny size.",
+      "capabilities": ["reasoning", "math"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 4096
+    },
+    {
+      "name": "DeepSeek R1 7B",
+      "tag": "deepseek-r1:7b",
+      "size_gb": 4.7,
+      "min_ram_gb": 8,
+      "description": "Strong 7B reasoning model. Excellent for math, logic, and problem solving.",
+      "capabilities": ["reasoning", "math", "coding"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "DeepSeek R1 8B",
+      "tag": "deepseek-r1:8b",
+      "size_gb": 4.9,
+      "min_ram_gb": 8,
+      "description": "Latest 8B distilled reasoning model. Top-tier logic and analysis.",
+      "capabilities": ["reasoning", "math", "coding"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "DeepSeek Coder V2 Lite",
+      "tag": "deepseek-coder-v2:lite",
+      "size_gb": 8.9,
+      "min_ram_gb": 12,
+      "description": "16B MoE coding model. Professional-grade code gen with explanation.",
+      "capabilities": ["coding", "reasoning"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "Starcoder2 3B",
+      "tag": "starcoder2:3b",
+      "size_gb": 1.7,
+      "min_ram_gb": 4,
+      "description": "BigCode's 3B coding model. Trained on 600+ programming languages.",
+      "capabilities": ["coding"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 4096
+    },
+    {
+      "name": "Starcoder2 7B",
+      "tag": "starcoder2:7b",
+      "size_gb": 4.0,
+      "min_ram_gb": 8,
+      "description": "BigCode's 7B model. Strong multi-language code completion and generation.",
+      "capabilities": ["coding"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 4096
+    },
+    {
+      "name": "Llava 7B",
+      "tag": "llava:7b",
+      "size_gb": 4.7,
+      "min_ram_gb": 8,
+      "description": "Vision-language model. Describe, analyze, and answer questions about images.",
+      "capabilities": ["chat", "vision"],
+      "supports_images": true,
+      "supports_files": false,
+      "context_window": 4096
+    },
+    {
+      "name": "Moondream 2",
+      "tag": "moondream",
+      "size_gb": 1.7,
+      "min_ram_gb": 4,
+      "description": "Tiny but capable vision model. Image understanding at minimal resource cost.",
+      "capabilities": ["vision"],
+      "supports_images": true,
+      "supports_files": false,
+      "context_window": 2048
+    },
+    {
+      "name": "Nomic Embed Text",
+      "tag": "nomic-embed-text",
+      "size_gb": 0.3,
+      "min_ram_gb": 2,
+      "description": "Text embedding model. Useful for semantic search and RAG applications.",
+      "capabilities": ["embedding"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "Orca Mini 3B",
+      "tag": "orca-mini:3b",
+      "size_gb": 1.9,
+      "min_ram_gb": 4,
+      "description": "Compact reasoning model trained on synthetic data. Good for instruction following.",
+      "capabilities": ["chat", "reasoning"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 2048
+    },
+    {
+      "name": "Dolphin Phi 2.7B",
+      "tag": "dolphin-phi",
+      "size_gb": 1.6,
+      "min_ram_gb": 4,
+      "description": "Uncensored assistant based on Phi-2. Creative writing and open-ended chat.",
+      "capabilities": ["chat"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 2048
+    },
+    {
+      "name": "Neural Chat 7B",
+      "tag": "neural-chat",
+      "size_gb": 4.1,
+      "min_ram_gb": 8,
+      "description": "Intel-optimized 7B chat model. Fine-tuned for natural conversation flow.",
+      "capabilities": ["chat"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 4096
+    }
+  ]
+}
