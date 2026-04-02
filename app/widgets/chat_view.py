@@ -58,6 +58,7 @@ class ChatView(QWidget):
     """Full chat interface with message history and streaming responses."""
 
     back_requested = Signal()
+    navigate_to_discover = Signal()
 
     def __init__(self, api: OllamaAPI, catalog: ModelCatalog, parent=None):
         super().__init__(parent)
@@ -324,6 +325,60 @@ class ChatView(QWidget):
             border-radius: 8px;
         """)
 
+        # ═══ Empty state overlay (shown when no models installed) ═══
+        self._empty_overlay = QWidget(self)
+        self._empty_overlay.setVisible(False)
+        self._empty_overlay.setStyleSheet(f"background-color: {COLORS.bg_base};")
+
+        overlay_layout = QVBoxLayout(self._empty_overlay)
+        overlay_layout.setAlignment(Qt.AlignCenter)
+
+        empty_card = QWidget()
+        empty_card.setFixedSize(420, 300)
+        empty_card.setStyleSheet(f"""
+            QWidget {{
+                background-color: {COLORS.bg_surface};
+                border: 1px solid {COLORS.border_default};
+                border-radius: 20px;
+            }}
+        """)
+
+        empty_card_layout = QVBoxLayout(empty_card)
+        empty_card_layout.setContentsMargins(40, 36, 40, 36)
+        empty_card_layout.setSpacing(10)
+        empty_card_layout.setAlignment(Qt.AlignCenter)
+
+        empty_icon = QLabel("📦")
+        empty_icon.setFont(QFont("Segoe UI Emoji", 36))
+        empty_icon.setAlignment(Qt.AlignCenter)
+        empty_icon.setStyleSheet("background: transparent;")
+        empty_card_layout.addWidget(empty_icon)
+
+        empty_title = QLabel("No Models Installed")
+        empty_title.setAlignment(Qt.AlignCenter)
+        empty_title.setStyleSheet(f"""
+            font-size: 20px; font-weight: 700;
+            color: {COLORS.text_primary}; background: transparent;
+        """)
+        empty_card_layout.addWidget(empty_title)
+
+        empty_desc = QLabel("You need to download an AI model before\nyou can start chatting.")
+        empty_desc.setAlignment(Qt.AlignCenter)
+        empty_desc.setWordWrap(True)
+        empty_desc.setStyleSheet(f"color: {COLORS.text_secondary}; font-size: 13px; background: transparent;")
+        empty_card_layout.addWidget(empty_desc)
+
+        empty_card_layout.addSpacing(12)
+
+        discover_btn = QPushButton("🔍  Browse & Install Models")
+        discover_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        discover_btn.setFixedHeight(44)
+        discover_btn.setStyleSheet(accent_button_style())
+        discover_btn.clicked.connect(self.navigate_to_discover.emit)
+        empty_card_layout.addWidget(discover_btn)
+
+        overlay_layout.addWidget(empty_card, alignment=Qt.AlignCenter)
+
     def load_models(self):
         """Populate model selector with installed models."""
         self._model_combo.blockSignals(True)
@@ -341,6 +396,15 @@ class ChatView(QWidget):
 
         self._model_combo.blockSignals(False)
         self._update_input_capabilities()
+
+        # Show/hide empty state overlay
+        has_models = self._model_combo.count() > 0
+        self._empty_overlay.setVisible(not has_models)
+
+    def resizeEvent(self, event):
+        """Keep empty overlay sized to fill the widget."""
+        super().resizeEvent(event)
+        self._empty_overlay.setGeometry(self.rect())
 
     def open_conversation(self, conv_id: int):
         """Open an existing conversation."""
@@ -375,6 +439,8 @@ class ChatView(QWidget):
 
     def _new_chat(self):
         """Create a new chat."""
+        if self._model_combo.count() == 0:
+            return  # empty state overlay handles this
         self.start_new_chat()
 
     def _load_messages(self):
@@ -404,7 +470,7 @@ class ChatView(QWidget):
         if not text or self._is_streaming:
             return
 
-        if not self._current_model:
+        if not self._current_model or self._model_combo.count() == 0:
             return
 
         # Create conversation if needed

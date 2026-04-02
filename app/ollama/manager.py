@@ -35,6 +35,9 @@ class OllamaManager(QObject):
         self._process: QProcess | None = None
         self._health_timer = QTimer(self)
         self._health_timer.timeout.connect(self._check_health)
+        self._ready_timer = QTimer(self)
+        self._ready_timer.timeout.connect(self._poll_ready)
+        self._ready_attempts = 0
         self._restart_count = 0
         self._max_restarts = 3
         self._intentional_stop = False
@@ -226,29 +229,35 @@ class OllamaManager(QObject):
         self._intentional_stop = False
         self._process.start()
 
-        # Wait for server to become ready
-        QTimer.singleShot(1500, self._wait_for_ready)
+        # Wait for server to become ready (non-blocking polling)
+        self._ready_attempts = 0
+        self._ready_timer.start(500)  # poll every 500ms
 
-    def _wait_for_ready(self):
-        """Poll the server until it responds or times out."""
-        for attempt in range(20):  # ~10 seconds
-            try:
-                resp = requests.get(f"{self.base_url}/", timeout=1)
-                if resp.status_code == 200:
-                    self._restart_count = 0
-                    self.server_started.emit()
-                    self._health_timer.start(5000)
-                    return
-            except requests.ConnectionError:
-                pass
-            time.sleep(0.5)
+    def _poll_ready(self):
+        """Non-blocking poll: check if server is ready."""
+        self._ready_attempts += 1
+        try:
+            resp = requests.get(f"{self.base_url}/", timeout=1)
+            if resp.status_code == 200:
+                self._ready_timer.stop()
+                self._restart_count = 0
+                self.server_started.emit()
+                self._health_timer.start(5000)
+                return
+        except requests.ConnectionError:
+            pass
+        except Exception:
+            pass
 
-        self.server_error.emit("Ollama server did not start in time.")
+        if self._ready_attempts >= 30:  # ~15 seconds
+            self._ready_timer.stop()
+            self.server_error.emit("Ollama server did not start in time.")
 
     def stop_server(self):
         """Stop the Ollama server gracefully."""
         self._intentional_stop = True
         self._health_timer.stop()
+        self._ready_timer.stop()
         if self._process and self._process.state() == QProcess.Running:
             self._process.terminate()
             if not self._process.waitForFinished(5000):

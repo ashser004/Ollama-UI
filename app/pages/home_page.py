@@ -112,7 +112,7 @@ class HomePage(QWidget):
 
         new_chat_btn = self._make_action_card(
             "💬", "New Chat", "Start a conversation with an AI model",
-            lambda: self.navigate_to.emit("chat")
+            self._on_new_chat_click
         )
         actions_layout.addWidget(new_chat_btn)
 
@@ -188,6 +188,14 @@ class HomePage(QWidget):
         card_layout.addWidget(desc_label)
 
         return card
+
+    def _on_new_chat_click(self):
+        """Navigate to chat if models installed, otherwise to discover."""
+        models = self._api.list_models()
+        if models:
+            self.navigate_to.emit("chat")
+        else:
+            self.navigate_to.emit("discover")
 
     def refresh(self):
         """Update dashboard data."""

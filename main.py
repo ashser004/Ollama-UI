@@ -105,6 +105,7 @@ class MainWindow(QMainWindow):
         # Chat
         self._chat_page = ChatPage(self._api, self._catalog)
         self._chat_page.back_requested.connect(lambda: self._navigate("home"))
+        self._chat_page.navigate_to_discover.connect(lambda: self._navigate("discover"))
         self._pages.addWidget(self._chat_page)
 
         # Manage
