@@ -120,7 +120,7 @@ class ChatView(QWidget):
         top_layout.addStretch()
 
         # Agentic mode toggle
-        self._agentic_btn = QPushButton("🔀 Agentic Mode")
+        self._agentic_btn = QPushButton("~ Agentic Mode")
         self._agentic_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self._agentic_btn.setFixedHeight(32)
         self._agentic_btn.setCheckable(True)
@@ -234,7 +234,7 @@ class ChatView(QWidget):
         input_layout.setSpacing(10)
 
         # Attachment buttons
-        self._img_btn = QPushButton("📷")
+        self._img_btn = QPushButton("□")
         self._img_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self._img_btn.setFixedSize(36, 36)
         self._img_btn.setToolTip("Attach image")
@@ -250,7 +250,7 @@ class ChatView(QWidget):
         self._img_btn.clicked.connect(self._attach_image)
         input_layout.addWidget(self._img_btn)
 
-        self._file_btn = QPushButton("📎")
+        self._file_btn = QPushButton("⎘")
         self._file_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self._file_btn.setFixedSize(36, 36)
         self._file_btn.setToolTip("Attach file")
@@ -348,10 +348,9 @@ class ChatView(QWidget):
         empty_card_layout.setSpacing(10)
         empty_card_layout.setAlignment(Qt.AlignCenter)
 
-        empty_icon = QLabel("📦")
-        empty_icon.setFont(QFont("Segoe UI Emoji", 36))
+        empty_icon = QLabel("◇")
         empty_icon.setAlignment(Qt.AlignCenter)
-        empty_icon.setStyleSheet("background: transparent;")
+        empty_icon.setStyleSheet(f"font-size: 42px; color: {COLORS.accent_primary}; background: transparent;")
         empty_card_layout.addWidget(empty_icon)
 
         empty_title = QLabel("No Models Installed")
@@ -370,7 +369,7 @@ class ChatView(QWidget):
 
         empty_card_layout.addSpacing(12)
 
-        discover_btn = QPushButton("🔍  Browse & Install Models")
+        discover_btn = QPushButton("Browse & Install Models")
         discover_btn.setCursor(QCursor(Qt.PointingHandCursor))
         discover_btn.setFixedHeight(44)
         discover_btn.setStyleSheet(accent_button_style())

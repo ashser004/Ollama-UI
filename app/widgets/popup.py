@@ -54,7 +54,7 @@ class ToastNotification(QWidget):
         layout.setContentsMargins(12, 10, 12, 10)
 
         icon_label = QLabel(icon)
-        icon_label.setFont(QFont("Segoe UI Emoji", 16))
+        icon_label.setStyleSheet(f"font-size: 16px; color: {COLORS.text_primary}; background: transparent;")
         icon_label.setFixedWidth(30)
         layout.addWidget(icon_label)
 

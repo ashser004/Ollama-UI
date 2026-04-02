@@ -57,7 +57,7 @@ class ChatBubble(QWidget):
 
         # Model tag (for assistant messages or agentic mode)
         if not is_user and model:
-            model_label = QLabel(f"🤖 {model}")
+            model_label = QLabel(f"[{model}]")
             model_label.setStyleSheet(f"""
                 font-size: 10px; font-weight: 600;
                 color: {COLORS.accent_primary}; background: transparent;
@@ -110,7 +110,7 @@ class ChatBubble(QWidget):
             bottom = QHBoxLayout()
             bottom.addStretch()
 
-            copy_btn = QPushButton("📋 Copy")
+            copy_btn = QPushButton("Copy")
             copy_btn.setCursor(QCursor(Qt.PointingHandCursor))
             copy_btn.setFixedHeight(24)
             copy_btn.setStyleSheet(f"""

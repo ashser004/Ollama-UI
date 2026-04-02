@@ -35,7 +35,7 @@ class LogsView(QWidget):
         header.addStretch()
 
         # Refresh button
-        refresh_btn = QPushButton("🔄 Refresh")
+        refresh_btn = QPushButton("Refresh")
         refresh_btn.setCursor(Qt.PointingHandCursor)
         refresh_btn.setFixedHeight(32)
         refresh_btn.setStyleSheet(f"""
@@ -56,7 +56,7 @@ class LogsView(QWidget):
         header.addWidget(refresh_btn)
 
         # Clear button
-        clear_btn = QPushButton("🗑 Clear Logs")
+        clear_btn = QPushButton("Clear Logs")
         clear_btn.setCursor(Qt.PointingHandCursor)
         clear_btn.setFixedHeight(32)
         clear_btn.setStyleSheet(f"""
@@ -107,7 +107,7 @@ class LogsView(QWidget):
                 if content.strip():
                     self._log_view.setPlainText(content)
                 else:
-                    self._log_view.setPlainText("No errors logged. Everything is running smoothly! 🎉")
+                    self._log_view.setPlainText("No errors logged. Everything is running smoothly.")
             except IOError:
                 self._log_view.setPlainText("Could not read log file.")
         else:

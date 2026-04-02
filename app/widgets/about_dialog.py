@@ -2,7 +2,7 @@
 about_dialog.py — About section showing app info and developer credits.
 """
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QDesktopServices, QCursor
 from PySide6.QtCore import QUrl
@@ -21,30 +21,33 @@ class AboutView(QWidget):
         layout.setAlignment(Qt.AlignCenter)
         layout.setSpacing(0)
 
-        # Center card
+        # Center card — no visible border, subtle background
         card = QWidget()
-        card.setFixedSize(460, 440)
+        card.setFixedSize(460, 420)
         card.setStyleSheet(f"""
             QWidget {{
                 background-color: {COLORS.bg_surface};
-                border: 1px solid {COLORS.border_default};
+                border: none;
                 border-radius: 20px;
             }}
         """)
 
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(40, 36, 40, 36)
-        card_layout.setSpacing(8)
+        card_layout.setContentsMargins(48, 40, 48, 40)
+        card_layout.setSpacing(6)
         card_layout.setAlignment(Qt.AlignCenter)
 
-        # App icon
-        icon = QLabel("🧠")
-        icon.setFont(QFont("Segoe UI Emoji", 48))
+        # App icon — styled text instead of emoji
+        icon = QLabel("◆")
         icon.setAlignment(Qt.AlignCenter)
-        icon.setStyleSheet("background: transparent;")
+        icon.setStyleSheet(f"""
+            font-size: 36px;
+            color: {COLORS.accent_primary};
+            background: transparent;
+        """)
         card_layout.addWidget(icon)
 
-        card_layout.addSpacing(8)
+        card_layout.addSpacing(10)
 
         # App name
         name = QLabel(config.APP_NAME)
@@ -64,7 +67,7 @@ class AboutView(QWidget):
         """)
         card_layout.addWidget(version)
 
-        card_layout.addSpacing(20)
+        card_layout.addSpacing(24)
 
         # Description
         desc = QLabel(
@@ -74,18 +77,23 @@ class AboutView(QWidget):
         )
         desc.setAlignment(Qt.AlignCenter)
         desc.setWordWrap(True)
-        desc.setStyleSheet(f"color: {COLORS.text_secondary}; font-size: 13px; background: transparent; line-height: 1.6;")
+        desc.setStyleSheet(f"""
+            color: {COLORS.text_secondary};
+            font-size: 13px;
+            background: transparent;
+            line-height: 1.6;
+        """)
         card_layout.addWidget(desc)
 
-        card_layout.addSpacing(20)
+        card_layout.addSpacing(28)
 
-        # Separator
+        # Separator — thin line
         sep = QWidget()
         sep.setFixedHeight(1)
         sep.setStyleSheet(f"background-color: {COLORS.border_default};")
         card_layout.addWidget(sep)
 
-        card_layout.addSpacing(16)
+        card_layout.addSpacing(20)
 
         # Developer info
         dev_label = QLabel("Developed by")
@@ -101,25 +109,25 @@ class AboutView(QWidget):
         """)
         card_layout.addWidget(dev_name)
 
-        card_layout.addSpacing(12)
+        card_layout.addSpacing(16)
 
-        # GitHub button
-        github_btn = QPushButton("⭐  View on GitHub")
+        # GitHub button — kept star as requested
+        github_btn = QPushButton("  View on GitHub")
         github_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        github_btn.setFixedHeight(40)
+        github_btn.setFixedHeight(42)
         github_btn.setFixedWidth(200)
         github_btn.setStyleSheet(f"""
             QPushButton {{
-                background: {COLORS.bg_elevated};
-                color: {COLORS.text_primary};
-                border: 1px solid {COLORS.border_default};
-                border-radius: 10px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {COLORS.accent_gradient_start}, stop:1 {COLORS.accent_gradient_end});
+                color: {COLORS.text_on_accent};
+                border: none;
+                border-radius: 12px;
                 font-size: 13px;
-                font-weight: 500;
+                font-weight: 600;
             }}
             QPushButton:hover {{
-                background: {COLORS.bg_hover};
-                border-color: {COLORS.accent_primary}44;
+                background: {COLORS.accent_hover};
             }}
         """)
         github_btn.clicked.connect(

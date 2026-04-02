@@ -85,7 +85,7 @@ class ModelCard(QWidget):
 
         # Vision indicator
         if model.get("supports_images"):
-            vision_tag = QLabel("📷 Vision")
+            vision_tag = QLabel("Vision")
             vision_tag.setStyleSheet(tag_badge_style(COLORS.tag_vision))
             vision_tag.setFixedHeight(22)
             tags_layout.addWidget(vision_tag)

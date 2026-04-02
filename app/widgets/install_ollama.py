@@ -61,10 +61,9 @@ class InstallOllamaWidget(QWidget):
         card_layout.setSpacing(12)
 
         # Icon
-        icon = QLabel("⚡")
-        icon.setFont(QFont("Segoe UI Emoji", 36))
+        icon = QLabel("⬡")
         icon.setAlignment(Qt.AlignCenter)
-        icon.setStyleSheet("background: transparent;")
+        icon.setStyleSheet(f"font-size: 36px; color: {COLORS.accent_primary}; background: transparent;")
         card_layout.addWidget(icon)
 
         # Title

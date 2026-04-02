@@ -41,10 +41,9 @@ class StorageDialog(QWidget):
         card_layout.setSpacing(8)
 
         # Welcome icon
-        icon = QLabel("🧠")
-        icon.setFont(QFont("Segoe UI Emoji", 40))
+        icon = QLabel("◆")
         icon.setAlignment(Qt.AlignCenter)
-        icon.setStyleSheet("background: transparent;")
+        icon.setStyleSheet(f"font-size: 40px; color: {COLORS.accent_primary}; background: transparent;")
         card_layout.addWidget(icon)
 
         card_layout.addSpacing(8)
@@ -155,7 +154,7 @@ class StorageDialog(QWidget):
             space = SystemMonitor.check_drive_space(path)
             free = space["free_gb"]
             total = space["total_gb"]
-            self._space_label.setText(f"💾 {free:.1f} GB free of {total:.0f} GB")
+            self._space_label.setText(f"{free:.1f} GB free of {total:.0f} GB")
 
             if free < config.MIN_DISK_FOR_SETUP_GB:
                 self._warning_label.setText(
@@ -168,7 +167,7 @@ class StorageDialog(QWidget):
 
                 if free < config.MIN_DISK_FOR_MODELS_GB:
                     self._space_label.setText(
-                        f"💾 {free:.1f} GB free — models need at least {config.MIN_DISK_FOR_MODELS_GB} GB"
+                        f"{free:.1f} GB free — models need at least {config.MIN_DISK_FOR_MODELS_GB} GB"
                     )
                     self._space_label.setStyleSheet(
                         f"color: {COLORS.warning}; font-size: 11px; background: transparent;"

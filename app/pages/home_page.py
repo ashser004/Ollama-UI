@@ -16,7 +16,7 @@ from app import config, database as db
 class StatCard(QWidget):
     """Small stat card widget."""
 
-    def __init__(self, icon: str, title: str, value: str, parent=None):
+    def __init__(self, accent_color: str, title: str, value: str, parent=None):
         super().__init__(parent)
         self.setFixedHeight(100)
         self.setStyleSheet(f"""
@@ -32,13 +32,10 @@ class StatCard(QWidget):
         layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(6)
 
-        top = QHBoxLayout()
-        icon_label = QLabel(icon)
-        icon_label.setFont(QFont("Segoe UI Emoji", 20))
-        icon_label.setStyleSheet("background: transparent;")
-        top.addWidget(icon_label)
-        top.addStretch()
-        layout.addLayout(top)
+        # Colored accent dot
+        dot = QLabel("●")
+        dot.setStyleSheet(f"color: {accent_color}; font-size: 10px; background: transparent;")
+        layout.addWidget(dot)
 
         self._value = QLabel(value)
         self._value.setStyleSheet(f"""
@@ -75,7 +72,7 @@ class HomePage(QWidget):
         header = QVBoxLayout()
         header.setSpacing(4)
 
-        greeting = QLabel("Welcome back 👋")
+        greeting = QLabel("Welcome back")
         greeting.setStyleSheet(f"""
             font-size: 28px; font-weight: 800;
             color: {COLORS.text_primary}; background: transparent;
@@ -92,16 +89,16 @@ class HomePage(QWidget):
         stats_grid = QGridLayout()
         stats_grid.setSpacing(14)
 
-        self._models_stat = StatCard("📦", "Models Installed", "0")
+        self._models_stat = StatCard(COLORS.accent_primary, "Models Installed", "0")
         stats_grid.addWidget(self._models_stat, 0, 0)
 
-        self._chats_stat = StatCard("💬", "Conversations", "0")
+        self._chats_stat = StatCard(COLORS.success, "Conversations", "0")
         stats_grid.addWidget(self._chats_stat, 0, 1)
 
-        self._storage_stat = StatCard("💾", "Storage Free", "--")
+        self._storage_stat = StatCard(COLORS.warning, "Storage Free", "--")
         stats_grid.addWidget(self._storage_stat, 0, 2)
 
-        self._ram_stat = StatCard("🧠", "System RAM", "--")
+        self._ram_stat = StatCard("#e879f9", "System RAM", "--")
         stats_grid.addWidget(self._ram_stat, 0, 3)
 
         layout.addLayout(stats_grid)
@@ -111,19 +108,19 @@ class HomePage(QWidget):
         actions_layout.setSpacing(14)
 
         new_chat_btn = self._make_action_card(
-            "💬", "New Chat", "Start a conversation with an AI model",
+            "New Chat", "Start a conversation with an AI model",
             self._on_new_chat_click
         )
         actions_layout.addWidget(new_chat_btn)
 
         discover_btn = self._make_action_card(
-            "🔍", "Discover Models", "Browse and install AI models",
+            "Discover Models", "Browse and install AI models",
             lambda: self.navigate_to.emit("discover")
         )
         actions_layout.addWidget(discover_btn)
 
         manage_btn = self._make_action_card(
-            "📦", "Manage Models", "View and manage installed models",
+            "Manage Models", "View and manage installed models",
             lambda: self.navigate_to.emit("manage")
         )
         actions_layout.addWidget(manage_btn)
@@ -147,11 +144,11 @@ class HomePage(QWidget):
 
         layout.addStretch()
 
-    def _make_action_card(self, icon: str, title: str, desc: str, callback) -> QWidget:
-        """Create a clickable action card."""
+    def _make_action_card(self, title: str, desc: str, callback) -> QWidget:
+        """Create a clickable action card — text only, no emoji icons."""
         card = QPushButton()
         card.setCursor(QCursor(Qt.PointingHandCursor))
-        card.setFixedHeight(110)
+        card.setFixedHeight(80)
         card.setStyleSheet(f"""
             QPushButton {{
                 background-color: {COLORS.bg_surface};
@@ -169,22 +166,19 @@ class HomePage(QWidget):
 
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(0, 0, 0, 0)
-        card_layout.setSpacing(6)
-
-        icon_label = QLabel(icon)
-        icon_label.setFont(QFont("Segoe UI Emoji", 22))
-        icon_label.setStyleSheet("background: transparent;")
-        card_layout.addWidget(icon_label)
+        card_layout.setSpacing(4)
 
         title_label = QLabel(title)
         title_label.setStyleSheet(f"""
-            font-size: 14px; font-weight: 700;
+            font-size: 15px; font-weight: 700;
             color: {COLORS.text_primary}; background: transparent;
         """)
+        title_label.setAttribute(Qt.WA_TransparentForMouseEvents)
         card_layout.addWidget(title_label)
 
         desc_label = QLabel(desc)
-        desc_label.setStyleSheet(f"font-size: 11px; color: {COLORS.text_muted}; background: transparent;")
+        desc_label.setStyleSheet(f"font-size: 12px; color: {COLORS.text_muted}; background: transparent;")
+        desc_label.setAttribute(Qt.WA_TransparentForMouseEvents)
         card_layout.addWidget(desc_label)
 
         return card
@@ -231,7 +225,7 @@ class HomePage(QWidget):
             self._recent_container.addWidget(empty)
         else:
             for conv in convs[:5]:
-                row = QPushButton(f"  💬  {conv['title']}    —    {conv['model']}    •    {conv['created_at'][:10]}")
+                row = QPushButton(f"  {conv['title']}  —  {conv['model']}  ·  {conv['created_at'][:10]}")
                 row.setCursor(QCursor(Qt.PointingHandCursor))
                 row.setFixedHeight(44)
                 row.setStyleSheet(f"""

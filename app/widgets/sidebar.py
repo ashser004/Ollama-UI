@@ -82,12 +82,12 @@ class Sidebar(QWidget):
 
     # Navigation items: (icon, label, page_key)
     NAV_ITEMS = [
-        ("🏠", "Home", "home"),
-        ("🔍", "Discover", "discover"),
-        ("💬", "Chat", "chat"),
-        ("📦", "Manage", "manage"),
-        ("📋", "Logs", "logs"),
-        ("ℹ️", "About", "about"),
+        ("▣", "Home", "home"),
+        ("◈", "Discover", "discover"),
+        ("▸", "Chat", "chat"),
+        ("◫", "Manage", "manage"),
+        ("≡", "Logs", "logs"),
+        ("◉", "About", "about"),
     ]
 
     def __init__(self, parent=None):
@@ -145,16 +145,17 @@ class Sidebar(QWidget):
         layout.addStretch()
 
         # Collapse button
-        self._collapse_btn = QPushButton("◀")
-        self._collapse_btn.setFixedSize(36, 36)
+        self._collapse_btn = QPushButton("◀  Collapse")
+        self._collapse_btn.setFixedHeight(30)
         self._collapse_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self._collapse_btn.setStyleSheet(f"""
             QPushButton {{
-                background: {COLORS.bg_surface};
+                background: transparent;
                 color: {COLORS.text_muted};
                 border: 1px solid {COLORS.border_default};
-                border-radius: 18px;
-                font-size: 12px;
+                border-radius: 6px;
+                font-size: 11px;
+                padding: 2px 12px;
             }}
             QPushButton:hover {{
                 background: {COLORS.bg_hover};
@@ -202,7 +203,7 @@ class Sidebar(QWidget):
         for btn in self._buttons.values():
             btn.set_expanded(self._expanded)
 
-        self._collapse_btn.setText("◀" if self._expanded else "▶")
+        self._collapse_btn.setText("◀  Collapse" if self._expanded else "▶")
         self._title_label.setVisible(self._expanded)
 
     def set_page(self, page_key: str):

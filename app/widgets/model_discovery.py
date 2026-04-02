@@ -46,7 +46,7 @@ class ModelDiscovery(QWidget):
         header.addStretch()
 
         # Storage indicator
-        self._storage_label = QLabel("💾 Checking storage...")
+        self._storage_label = QLabel("Checking storage...")
         self._storage_label.setStyleSheet(f"""
             font-size: 12px; color: {COLORS.text_secondary};
             background: {COLORS.bg_surface};
@@ -59,7 +59,7 @@ class ModelDiscovery(QWidget):
 
         # Search bar
         self._search = QLineEdit()
-        self._search.setPlaceholderText("🔍  Search models by name, capability, or keyword...")
+        self._search.setPlaceholderText("Search models by name, capability, or keyword...")
         self._search.setFixedHeight(44)
         self._search.setStyleSheet(search_bar_style())
         self._search.textChanged.connect(self._on_search)
@@ -121,7 +121,7 @@ class ModelDiscovery(QWidget):
         """Refresh the model grid."""
         # Update storage info
         disk_free = self._monitor.get_available_disk_gb()
-        self._storage_label.setText(f"💾 {disk_free:.1f} GB free")
+        self._storage_label.setText(f"{disk_free:.1f} GB free")
 
         if disk_free < 10:
             self._warning_bar.setVisible(True)
