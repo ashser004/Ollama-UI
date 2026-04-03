@@ -1,5 +1,5 @@
 """
-model_manager.py — Installed model management view.
+model_manager.py — Installed model management view with Clear Cache.
 """
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -9,6 +9,8 @@ from PySide6.QtCore import Qt, Signal
 from app.theme import COLORS, accent_button_style, danger_button_style, tag_badge_style, get_tag_color
 from app.ollama.api import OllamaAPI
 from app.ollama.model_catalog import ModelCatalog
+from app.widgets.popup import ConfirmDialog, CacheCleanupDialog
+from app import config
 
 
 class ModelManager(QWidget):
@@ -16,6 +18,7 @@ class ModelManager(QWidget):
 
     open_chat_requested = Signal(str)  # model tag
     model_deleted = Signal(str)  # model tag
+    cache_cleared = Signal()  # emitted after cache cleanup
 
     def __init__(self, api: OllamaAPI, catalog: ModelCatalog, parent=None):
         super().__init__(parent)
@@ -26,17 +29,50 @@ class ModelManager(QWidget):
         layout.setContentsMargins(24, 20, 24, 12)
         layout.setSpacing(16)
 
-        # Header
+        # Header row: title on left, Clear Cache on right
+        header_row = QHBoxLayout()
+        header_row.setSpacing(12)
+
+        title_col = QVBoxLayout()
+        title_col.setSpacing(4)
+
         title = QLabel("Installed Models")
         title.setStyleSheet(f"""
             font-size: 24px; font-weight: 800;
             color: {COLORS.text_primary}; background: transparent;
         """)
-        layout.addWidget(title)
+        title_col.addWidget(title)
 
         subtitle = QLabel("Manage your downloaded AI models")
         subtitle.setStyleSheet(f"color: {COLORS.text_secondary}; font-size: 13px; background: transparent;")
-        layout.addWidget(subtitle)
+        title_col.addWidget(subtitle)
+
+        header_row.addLayout(title_col, 1)
+
+        # Clear Cache button
+        clear_cache_btn = QPushButton("Clear Cache")
+        clear_cache_btn.setCursor(Qt.PointingHandCursor)
+        clear_cache_btn.setFixedHeight(36)
+        clear_cache_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {COLORS.bg_surface};
+                color: {COLORS.text_secondary};
+                border: 1px solid {COLORS.border_default};
+                border-radius: 10px;
+                padding: 6px 18px;
+                font-size: 12px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background: {COLORS.bg_elevated};
+                color: {COLORS.error};
+                border-color: {COLORS.error}44;
+            }}
+        """)
+        clear_cache_btn.clicked.connect(self._on_clear_cache_click)
+        header_row.addWidget(clear_cache_btn, 0, Qt.AlignTop)
+
+        layout.addLayout(header_row)
 
         # Scrollable list
         scroll = QScrollArea()
@@ -145,3 +181,27 @@ class ModelManager(QWidget):
         if success:
             self.model_deleted.emit(name)
             self.refresh()
+
+    def _on_clear_cache_click(self):
+        """Show confirmation dialog before clearing cache."""
+        aiui_path = config.get_aiui_base_dir()
+        if not aiui_path:
+            return
+
+        self._confirm_dialog = ConfirmDialog(
+            title="Clear Cache",
+            message=(
+                "This will scan for and remove temporary files\n"
+                "(partial downloads, leftover zips, temp data).\n\n"
+                "Your installed models will NOT be affected."
+            ),
+            on_confirm=lambda: self._start_cache_cleanup(aiui_path),
+            confirm_text="Clear Cache",
+        )
+        self._confirm_dialog.show_centered(self.window())
+
+    def _start_cache_cleanup(self, aiui_path: str):
+        """Open the cache cleanup dialog."""
+        self._cleanup_dialog = CacheCleanupDialog(aiui_path)
+        self._cleanup_dialog.cache_cleared.connect(self.cache_cleared.emit)
+        self._cleanup_dialog.show_centered(self.window())

@@ -17,6 +17,7 @@ class DiscoverPage(QWidget):
     install_requested = Signal(dict)
     open_chat_requested = Signal(dict)
     delete_requested = Signal(dict)
+    pause_requested = Signal(dict)
 
     def __init__(self, api: OllamaAPI, catalog: ModelCatalog,
                  monitor: SystemMonitor, parent=None):
@@ -29,8 +30,12 @@ class DiscoverPage(QWidget):
         self._discovery.install_requested.connect(self.install_requested.emit)
         self._discovery.open_chat_requested.connect(self.open_chat_requested.emit)
         self._discovery.delete_requested.connect(self.delete_requested.emit)
+        self._discovery.pause_requested.connect(self.pause_requested.emit)
 
         layout.addWidget(self._discovery)
+
+    def set_download_states(self, states: dict):
+        self._discovery.set_download_states(states)
 
     def refresh(self):
         self._discovery.refresh()

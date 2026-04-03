@@ -21,6 +21,7 @@ class ModelDiscovery(QWidget):
     install_requested = Signal(dict)
     open_chat_requested = Signal(dict)
     delete_requested = Signal(dict)
+    pause_requested = Signal(dict)
 
     def __init__(self, catalog: ModelCatalog, api: OllamaAPI,
                  monitor: SystemMonitor, parent=None):
@@ -30,6 +31,7 @@ class ModelDiscovery(QWidget):
         self._monitor = monitor
         self._active_filter = "all"
         self._cards: list[ModelCard] = []
+        self._paused_states: dict = {}  # tag -> {progress_pct, ...}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 20, 24, 12)
@@ -117,6 +119,10 @@ class ModelDiscovery(QWidget):
         scroll.setWidget(self._grid_container)
         layout.addWidget(scroll, 1)
 
+    def set_download_states(self, states: dict):
+        """Set paused/persisted download states for card creation."""
+        self._paused_states = states
+
     def refresh(self):
         """Refresh the model grid."""
         # Update storage info
@@ -158,10 +164,18 @@ class ModelDiscovery(QWidget):
         # Add cards
         cols = 2
         for i, model in enumerate(models):
+            # Inject paused state if applicable
+            tag = model.get("tag", "")
+            if not model.get("is_installed") and tag in self._paused_states:
+                state = self._paused_states[tag]
+                model["is_paused"] = True
+                model["paused_progress_pct"] = state.get("progress_pct", 0)
+
             card = ModelCard(model)
             card.install_requested.connect(self.install_requested.emit)
             card.open_requested.connect(self.open_chat_requested.emit)
             card.delete_requested.connect(self.delete_requested.emit)
+            card.pause_requested.connect(self.pause_requested.emit)
             self._grid_layout.addWidget(card, i // cols, i % cols)
             self._cards.append(card)
 

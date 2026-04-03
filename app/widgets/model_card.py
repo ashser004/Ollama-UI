@@ -1,5 +1,7 @@
 """
 model_card.py — Individual model card widget for discovery grid.
+
+Supports install, pause, resume (from cache), open chat, and delete.
 """
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -11,18 +13,21 @@ from app.theme import COLORS, accent_button_style, danger_button_style, tag_badg
 
 
 class ModelCard(QWidget):
-    """Card widget showing model info with install/open/delete actions."""
+    """Card widget showing model info with install/pause/resume/open/delete actions."""
 
     install_requested = Signal(dict)  # model data
     open_requested = Signal(dict)
     delete_requested = Signal(dict)
+    pause_requested = Signal(dict)    # model data — pause active download
 
     def __init__(self, model: dict, parent=None):
         super().__init__(parent)
         self._model = model
         self._is_downloading = False
+        self._is_paused = model.get("is_paused", False)
+        self._last_pct = model.get("paused_progress_pct", 0)
 
-        self.setFixedHeight(180)
+        self.setFixedHeight(190)
         self.setCursor(QCursor(Qt.PointingHandCursor))
         self.setStyleSheet(f"""
             QWidget#modelCard {{
@@ -95,20 +100,45 @@ class ModelCard(QWidget):
 
         layout.addStretch()
 
-        # Bottom: progress bar (hidden) + action button
+        # ── Progress row: [ProgressBar] [PauseBtn] ──
+        progress_row = QHBoxLayout()
+        progress_row.setSpacing(6)
+
         self._progress = QProgressBar()
-        self._progress.setVisible(False)
         self._progress.setFixedHeight(10)
         self._progress.setRange(0, 100)
-        layout.addWidget(self._progress)
+        progress_row.addWidget(self._progress, 1)
+
+        self._pause_btn = QPushButton("⏸")
+        self._pause_btn.setFixedSize(26, 26)
+        self._pause_btn.setCursor(Qt.PointingHandCursor)
+        self._pause_btn.setToolTip("Pause download")
+        self._pause_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {COLORS.bg_hover};
+                color: {COLORS.text_secondary};
+                border: 1px solid {COLORS.border_default};
+                border-radius: 13px;
+                font-size: 11px;
+            }}
+            QPushButton:hover {{
+                background: {COLORS.warning}30;
+                color: {COLORS.warning};
+                border-color: {COLORS.warning}44;
+            }}
+        """)
+        self._pause_btn.clicked.connect(self._on_pause_click)
+        self._pause_btn.setVisible(False)
+        progress_row.addWidget(self._pause_btn)
+
+        layout.addLayout(progress_row)
 
         self._progress_label = QLabel("")
-        self._progress_label.setVisible(False)
         self._progress_label.setStyleSheet(f"color: {COLORS.text_muted}; font-size: 10px; background: transparent;")
         self._progress_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self._progress_label)
 
-        # Action buttons row
+        # ── Action buttons row ──
         action_layout = QHBoxLayout()
         action_layout.setSpacing(8)
 
@@ -117,7 +147,11 @@ class ModelCard(QWidget):
         warning = model.get("install_warning", "")
 
         if is_installed:
-            open_btn = QPushButton("Open Chat")
+            # ── Installed: Chat + Delete ──
+            self._progress.setVisible(False)
+            self._progress_label.setVisible(False)
+
+            open_btn = QPushButton("Chat")
             open_btn.setCursor(Qt.PointingHandCursor)
             open_btn.setFixedHeight(32)
             open_btn.setStyleSheet(accent_button_style())
@@ -130,7 +164,27 @@ class ModelCard(QWidget):
             del_btn.setStyleSheet(danger_button_style())
             del_btn.clicked.connect(lambda: self.delete_requested.emit(self._model))
             action_layout.addWidget(del_btn)
+
+        elif self._is_paused:
+            # ── Paused: show saved progress + Resume ──
+            self._progress.setValue(self._last_pct)
+            self._progress.setVisible(True)
+            self._progress_label.setText(f"Paused — {self._last_pct}%")
+            self._progress_label.setVisible(True)
+            self._pause_btn.setVisible(False)
+
+            self._install_btn = QPushButton("▶  Resume")
+            self._install_btn.setCursor(Qt.PointingHandCursor)
+            self._install_btn.setFixedHeight(32)
+            self._install_btn.setStyleSheet(accent_button_style())
+            self._install_btn.clicked.connect(self._on_resume_click)
+            action_layout.addWidget(self._install_btn)
+
         else:
+            # ── Not installed: Install button ──
+            self._progress.setVisible(False)
+            self._progress_label.setVisible(False)
+
             self._install_btn = QPushButton("Install" if can_install else "! " + warning)
             self._install_btn.setCursor(Qt.PointingHandCursor)
             self._install_btn.setFixedHeight(32)
@@ -148,17 +202,21 @@ class ModelCard(QWidget):
                         font-size: 11px;
                     }}
                 """)
-            self._install_btn.clicked.connect(lambda: self._on_install_click())
+            self._install_btn.clicked.connect(self._on_install_click)
             action_layout.addWidget(self._install_btn)
 
         layout.addLayout(action_layout)
 
+    # ─── Interactions ────────────────────────────────
+
     def set_downloading(self):
         """Set the card into downloading state (for reconnection after tab switch)."""
         self._is_downloading = True
+        self._is_paused = False
         self._progress.setVisible(True)
         self._progress_label.setVisible(True)
         self._progress_label.setText("Downloading...")
+        self._pause_btn.setVisible(True)
         if hasattr(self, '_install_btn'):
             self._install_btn.setVisible(False)
 
@@ -167,17 +225,43 @@ class ModelCard(QWidget):
         if not self._is_downloading:
             self.install_requested.emit(self._model)
 
+    def _on_resume_click(self):
+        """Handle resume button click — re-triggers install (Ollama handles cache)."""
+        self._is_paused = False
+        self.install_requested.emit(self._model)
+
+    def _on_pause_click(self):
+        """Handle pause button click."""
+        self._is_downloading = False
+        self._is_paused = True
+        self._pause_btn.setVisible(False)
+        self._progress_label.setText(f"Paused — {self._last_pct}%")
+        if hasattr(self, '_install_btn'):
+            self._install_btn.setText("▶  Resume")
+            self._install_btn.setVisible(True)
+            self._install_btn.setEnabled(True)
+            self._install_btn.setStyleSheet(accent_button_style())
+            try:
+                self._install_btn.clicked.disconnect()
+            except RuntimeError:
+                pass
+            self._install_btn.clicked.connect(self._on_resume_click)
+        self.pause_requested.emit(self._model)
+
     @Slot(int, int, str)
     def update_progress(self, completed: int, total: int, status: str):
         """Update download progress."""
         self._is_downloading = True
+        self._is_paused = False
         self._progress.setVisible(True)
         self._progress_label.setVisible(True)
+        self._pause_btn.setVisible(True)
         if hasattr(self, '_install_btn'):
             self._install_btn.setVisible(False)
 
         if total > 0:
             pct = int((completed / total) * 100)
+            self._last_pct = pct
             self._progress.setValue(pct)
             mb = completed / (1024 * 1024)
             mb_total = total / (1024 * 1024)
@@ -189,11 +273,13 @@ class ModelCard(QWidget):
     def install_finished(self, success: bool, message: str):
         """Handle install completion."""
         self._is_downloading = False
+        self._is_paused = False
         self._progress.setVisible(False)
         self._progress_label.setVisible(False)
+        self._pause_btn.setVisible(False)
         if hasattr(self, '_install_btn'):
             if success:
-                self._install_btn.setText("Installed")
+                self._install_btn.setText("Installed ✓")
                 self._install_btn.setEnabled(False)
             else:
                 self._install_btn.setText("Retry Install")

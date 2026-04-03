@@ -20,9 +20,15 @@ from app.ollama.manager import OllamaManager
 from app.ollama.api import OllamaAPI
 from app.ollama.model_catalog import ModelCatalog
 from app.services.system_monitor import SystemMonitor
+from app.services import wake_lock
+from app.services.download_state import (
+    load_states as load_download_states,
+    save_states as save_download_states,
+    remove_state as remove_download_state,
+)
 from app.widgets.sidebar import Sidebar
 from app.widgets.status_bar import StatusBar
-from app.widgets.popup import ToastNotification
+from app.widgets.popup import ToastNotification, ShutdownDialog
 from app.pages.setup_page import SetupPage
 from app.pages.home_page import HomePage
 from app.pages.discover_page import DiscoverPage
@@ -49,6 +55,15 @@ class MainWindow(QMainWindow):
 
         # Active model downloads: tag -> PullWorker
         self._active_pulls: dict = {}
+
+        # Persisted download states (paused/interrupted): tag -> {name, progress_pct, ...}
+        self._download_states: dict = {}
+
+        # Real-time progress cache for active downloads: tag -> {pct, completed, total, status}
+        self._progress_cache: dict = {}
+
+        # Shutdown state
+        self._shutdown_in_progress = False
 
         # ─── Central widget ───────────────────────
         central = QWidget()
@@ -103,6 +118,7 @@ class MainWindow(QMainWindow):
             lambda m: self._open_chat_model(m.get("tag", ""))
         )
         self._discover_page.delete_requested.connect(self._delete_model)
+        self._discover_page.pause_requested.connect(self._pause_model)
         self._pages.addWidget(self._discover_page)
 
         # Chat
@@ -115,6 +131,9 @@ class MainWindow(QMainWindow):
         self._manage_page = ManagePage(self._api, self._catalog)
         self._manage_page.open_chat_requested.connect(self._open_chat_model)
         self._manage_page.model_deleted.connect(self._on_model_deleted)
+        self._manage_page.cache_cleared.connect(
+            lambda: self._show_toast("Cache cleared successfully!", "success")
+        )
         self._pages.addWidget(self._manage_page)
 
         # Logs
@@ -168,6 +187,9 @@ class MainWindow(QMainWindow):
         # Clean up any partial downloads from previous interrupted sessions
         self._ollama_manager.cleanup_partial_downloads()
 
+        # Load persisted download states
+        self._download_states = load_download_states()
+
         # Show sidebar and status bar
         self._sidebar.setVisible(True)
         self._status_bar.setVisible(True)
@@ -180,6 +202,9 @@ class MainWindow(QMainWindow):
 
         # Update API base URL with correct port
         self._api.base_url = self._ollama_manager.base_url
+
+        # Acquire wake lock — keep screen on while app is running
+        wake_lock.acquire()
 
         # Navigate to home
         self._pages.setCurrentWidget(self._home_page)
@@ -214,12 +239,17 @@ class MainWindow(QMainWindow):
         if page:
             self._pages.setCurrentWidget(page)
             self._sidebar.set_page(page_key)
+
+            if page_key == "discover":
+                # Pass paused download states so cards show resume UI
+                self._discover_page.set_download_states(self._download_states)
+                self._reconnect_active_downloads()
+
             if hasattr(page, 'refresh'):
                 page.refresh()
+
             if page_key == "chat":
                 self._chat_page.load_models()
-            if page_key == "discover":
-                self._reconnect_active_downloads()
 
     def _open_chat_model(self, model_name: str):
         """Open chat with a specific model."""
@@ -233,8 +263,10 @@ class MainWindow(QMainWindow):
         self._chat_page.load_models()
         self._chat_page.open_conversation(conv_id)
 
+    # ─── Model Install / Pause / Resume ────────────────
+
     def _install_model(self, model: dict):
-        """Install a model from the catalog."""
+        """Install (or resume) a model from the catalog."""
         tag = model.get("tag", "")
         size_gb = model.get("size_gb", 0)
         min_ram = model.get("min_ram_gb", 0)
@@ -244,19 +276,31 @@ class MainWindow(QMainWindow):
             self._show_toast(f"{model.get('name', tag)} is already downloading", "info")
             return
 
-        # Check compatibility
-        can_install, reason = self._monitor.can_install_model(size_gb, min_ram)
-        if not can_install:
-            self._show_toast(reason, "error")
-            return
+        # Check compatibility (skip for resumes — already checked first time)
+        is_resume = tag in self._download_states
+        if not is_resume:
+            can_install, reason = self._monitor.can_install_model(size_gb, min_ram)
+            if not can_install:
+                self._show_toast(reason, "error")
+                return
 
-        self._show_toast(f"Installing {model.get('name', tag)}...", "info")
+        # Remove from paused states since it's now active
+        self._download_states.pop(tag, None)
+        save_download_states(self._download_states)
+
+        action = "Resuming" if is_resume else "Installing"
+        self._show_toast(f"{action} {model.get('name', tag)}...", "info")
 
         # Start pull
         worker = self._api.pull_model(tag)
 
         # Track the active download
         self._active_pulls[tag] = worker
+
+        # Track progress for persistence
+        worker.progress.connect(
+            lambda c, t, s, _tag=tag: self._on_pull_progress(_tag, c, t, s)
+        )
 
         # Connect to current card (may be None if page not visible)
         card = self._discover_page.get_card_by_tag(tag)
@@ -268,6 +312,39 @@ class MainWindow(QMainWindow):
             lambda success, msg: self._on_model_installed(success, msg, model)
         )
         worker.start()
+
+    def _on_pull_progress(self, tag: str, completed: int, total: int, status: str):
+        """Track download progress for persistence."""
+        pct = int((completed / total) * 100) if total > 0 else 0
+        self._progress_cache[tag] = {
+            "progress_pct": pct,
+            "completed": completed,
+            "total": total,
+            "status": status,
+        }
+
+    def _pause_model(self, model: dict):
+        """Pause an active model download."""
+        tag = model.get("tag", "")
+        name = model.get("name", tag)
+
+        # Abort the worker
+        worker = self._active_pulls.pop(tag, None)
+        if worker and worker.isRunning():
+            worker.abort()
+
+        # Save progress state
+        progress = self._progress_cache.get(tag, {})
+        self._download_states[tag] = {
+            "name": name,
+            "progress_pct": progress.get("progress_pct", 0),
+            "completed": progress.get("completed", 0),
+            "total": progress.get("total", 0),
+            "status": "paused",
+        }
+        save_download_states(self._download_states)
+
+        self._show_toast(f"{name} download paused", "info")
 
     def _reconnect_active_downloads(self):
         """Reconnect active download workers to newly created cards."""
@@ -289,15 +366,22 @@ class MainWindow(QMainWindow):
         tag = model.get("tag", "")
         name = model.get("name", tag)
 
-        # Remove from active pulls
+        # Remove from active pulls and progress cache
         self._active_pulls.pop(tag, None)
+        self._progress_cache.pop(tag, None)
+
+        # Remove from persisted states (fully done or failed)
+        self._download_states.pop(tag, None)
+        save_download_states(self._download_states)
 
         if success:
             self._show_toast(f"{name} installed successfully!", "success")
             self._log_event(f"Model installed: {name}")
         else:
-            self._show_toast(f"Failed to install {name}: {message}", "error")
-            self._log_event(f"Model install failed: {name} — {message}")
+            # If it was cancelled by user (pause), don't show error
+            if "Cancelled" not in message:
+                self._show_toast(f"Failed to install {name}: {message}", "error")
+                self._log_event(f"Model install failed: {name} — {message}")
 
     def _delete_model(self, model: dict):
         """Delete a model."""
@@ -313,6 +397,8 @@ class MainWindow(QMainWindow):
     def _on_model_deleted(self, name: str):
         """Handle model deletion from manage page."""
         self._show_toast(f"{name} deleted", "success")
+
+    # ─── UI Helpers ──────────────────────────────────
 
     def _show_toast(self, message: str, toast_type: str = "info"):
         """Show a toast notification."""
@@ -330,27 +416,65 @@ class MainWindow(QMainWindow):
             with open(log_path, "a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {message}\n")
 
-    def _is_busy_downloading(self) -> bool:
-        """Check if any download is currently in progress."""
-        if self._ollama_manager.is_downloading:
-            return True
+    # ─── Shutdown ────────────────────────────────────
+
+    def _is_busy(self) -> bool:
+        """Check if any process is currently running."""
         # Check active model pulls
         for tag, worker in list(self._active_pulls.items()):
             if worker.isRunning():
                 return True
             else:
                 del self._active_pulls[tag]
+
+        # Check Ollama manager downloading
+        if self._ollama_manager.is_downloading:
+            return True
+
         return False
 
+    def _has_running_processes(self) -> list[str]:
+        """Get list of currently running process names."""
+        tasks = []
+
+        # Active model downloads
+        active_downloads = []
+        for tag, worker in list(self._active_pulls.items()):
+            if worker.isRunning():
+                active_downloads.append(tag)
+            else:
+                del self._active_pulls[tag]
+        if active_downloads:
+            tasks.append(f"Stopping downloads ({len(active_downloads)})...")
+
+        # Ollama binary download
+        if self._ollama_manager.is_downloading:
+            tasks.append("Stopping Ollama installation...")
+
+        # Ollama server
+        if self._ollama_manager.is_running:
+            tasks.append("Stopping Ollama server...")
+
+        return tasks
+
     def closeEvent(self, event):
-        """Clean shutdown — warn if download is in progress."""
-        if self._is_busy_downloading():
+        """Clean shutdown — save state, stop processes with UI feedback."""
+        if self._shutdown_in_progress:
+            event.ignore()
+            return
+
+        tasks = self._has_running_processes()
+        has_active_downloads = self._is_busy()
+
+        if has_active_downloads:
+            # Show confirmation dialog first
             msg = QMessageBox(self)
-            msg.setWindowTitle("Download in Progress")
+            msg.setWindowTitle("Processes Running")
             msg.setText(
-                "A download is still in progress.\n\n"
-                "Closing now will cancel it and you may need\n"
-                "to restart it next time. Continue closing?"
+                "Active processes are still running.\n\n"
+                "Closing will pause your downloads and they can\n"
+                "be resumed next time you open the app.\n\n"
+                "Continue closing?"
             )
             msg.setIcon(QMessageBox.Warning)
             msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
@@ -372,9 +496,87 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
 
+        # Ignore the event — we'll close manually after shutdown completes
+        event.ignore()
+        self._shutdown_in_progress = True
+
+        # Always add the server task if running
+        if not tasks and self._ollama_manager.is_running:
+            tasks = ["Stopping Ollama server..."]
+
+        if tasks:
+            # Show the shutdown progress dialog
+            self._shutdown_dialog = ShutdownDialog(tasks, parent=None)
+            self._shutdown_dialog.shutdown_complete.connect(self._final_close)
+            self._shutdown_dialog.show_centered(self)
+
+            # Execute shutdown steps
+            self._execute_shutdown(tasks)
+        else:
+            # Nothing to stop — close immediately
+            self._final_close()
+
+    def _execute_shutdown(self, tasks: list[str]):
+        """Execute shutdown steps sequentially with UI feedback."""
+        self._shutdown_tasks = tasks
+        self._shutdown_step = 0
+        self._do_next_shutdown_step()
+
+    def _do_next_shutdown_step(self):
+        """Process the next shutdown step."""
+        if self._shutdown_step >= len(self._shutdown_tasks):
+            return
+
+        task = self._shutdown_tasks[self._shutdown_step]
+        self._shutdown_dialog.mark_task_active(self._shutdown_step)
+
+        if "downloads" in task.lower():
+            # Save progress for all active downloads before aborting
+            for tag, worker in list(self._active_pulls.items()):
+                progress = self._progress_cache.get(tag, {})
+                self._download_states[tag] = {
+                    "name": tag,
+                    "progress_pct": progress.get("progress_pct", 0),
+                    "completed": progress.get("completed", 0),
+                    "total": progress.get("total", 0),
+                    "status": "paused",
+                }
+                if worker.isRunning():
+                    worker.abort()
+            save_download_states(self._download_states)
+            self._active_pulls.clear()
+            self._shutdown_dialog.mark_task_done(self._shutdown_step)
+            self._shutdown_step += 1
+            QTimer.singleShot(300, self._do_next_shutdown_step)
+
+        elif "installation" in task.lower():
+            self._shutdown_dialog.mark_task_done(self._shutdown_step)
+            self._shutdown_step += 1
+            QTimer.singleShot(300, self._do_next_shutdown_step)
+
+        elif "server" in task.lower():
+            self._monitor.stop()
+            self._ollama_manager.stop_server()
+            self._shutdown_dialog.mark_task_done(self._shutdown_step)
+            self._shutdown_step += 1
+            QTimer.singleShot(300, self._do_next_shutdown_step)
+
+    def _final_close(self):
+        """Final cleanup and close the application."""
+        # Release wake lock
+        wake_lock.release()
+
+        # Stop anything still running
         self._monitor.stop()
-        self._ollama_manager.stop_server()
-        super().closeEvent(event)
+        if self._ollama_manager.is_running:
+            self._ollama_manager.stop_server()
+
+        # Close shutdown dialog if it exists
+        if hasattr(self, '_shutdown_dialog') and self._shutdown_dialog:
+            self._shutdown_dialog.close()
+
+        # Force quit
+        QApplication.instance().quit()
 
 
 def main():
@@ -386,6 +588,7 @@ def main():
     window.show()
 
     # Ensure cleanup on exit
+    atexit.register(lambda: wake_lock.release())
     atexit.register(lambda: window._ollama_manager.stop_server()
                     if window._ollama_manager.is_running else None)
 

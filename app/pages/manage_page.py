@@ -15,6 +15,7 @@ class ManagePage(QWidget):
 
     open_chat_requested = Signal(str)
     model_deleted = Signal(str)
+    cache_cleared = Signal()
 
     def __init__(self, api: OllamaAPI, catalog: ModelCatalog, parent=None):
         super().__init__(parent)
@@ -25,6 +26,7 @@ class ManagePage(QWidget):
         self._manager = ModelManager(api, catalog)
         self._manager.open_chat_requested.connect(self.open_chat_requested.emit)
         self._manager.model_deleted.connect(self.model_deleted.emit)
+        self._manager.cache_cleared.connect(self.cache_cleared.emit)
         layout.addWidget(self._manager)
 
     def refresh(self):
