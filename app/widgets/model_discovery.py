@@ -203,31 +203,32 @@ class ModelDiscovery(QWidget):
     def _update_filter_styles(self):
         """Update filter button visual states."""
         for key, btn in self._filter_buttons.items():
+            color = get_tag_color(key) if key != "all" else COLORS.accent_secondary
             if key == self._active_filter:
                 btn.setStyleSheet(f"""
                     QPushButton {{
-                        background: {COLORS.accent_primary};
+                        background: {color};
                         color: {COLORS.text_on_accent};
                         border: none;
                         border-radius: 16px;
-                        padding: 4px 16px;
+                        padding: 5px 16px;
                         font-size: 12px;
-                        font-weight: 600;
+                        font-weight: 700;
                     }}
                 """)
             else:
-                color = get_tag_color(key) if key != "all" else COLORS.text_secondary
                 btn.setStyleSheet(f"""
                     QPushButton {{
-                        background: {COLORS.bg_surface};
-                        color: {color};
-                        border: 1px solid {COLORS.border_default};
+                        background: {color}26;
+                        color: {COLORS.text_primary};
+                        border: 1px solid {color}66;
                         border-radius: 16px;
-                        padding: 4px 16px;
+                        padding: 5px 16px;
                         font-size: 12px;
+                        font-weight: 600;
                     }}
                     QPushButton:hover {{
-                        background: {COLORS.bg_elevated};
+                        background: {color}3a;
                         border-color: {color};
                     }}
                 """)

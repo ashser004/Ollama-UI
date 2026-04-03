@@ -85,6 +85,40 @@ def get_conversations() -> list[dict]:
         conn.close()
 
 
+def search_conversations(query: str = "", model: str | None = None) -> list[dict]:
+    """Search conversations by title, model, or message content."""
+    conn = _get_connection()
+    try:
+        sql = """
+            SELECT DISTINCT c.*
+            FROM conversations c
+            LEFT JOIN messages m ON m.conversation_id = c.id
+            WHERE 1=1
+        """
+        params: list[str] = []
+
+        if query:
+            like = f"%{query.lower()}%"
+            sql += """
+                AND (
+                    LOWER(c.title) LIKE ?
+                    OR LOWER(c.model) LIKE ?
+                    OR LOWER(COALESCE(m.content, '')) LIKE ?
+                )
+            """
+            params.extend([like, like, like])
+
+        if model and model.lower() != "all models":
+            sql += " AND c.model = ?"
+            params.append(model)
+
+        sql += " ORDER BY c.updated_at DESC"
+        rows = conn.execute(sql, params).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
 def get_conversation(conv_id: int) -> dict | None:
     """Get a single conversation by ID."""
     conn = _get_connection()

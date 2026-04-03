@@ -30,6 +30,9 @@ class ChatPage(QWidget):
     def load_models(self):
         self._chat_view.load_models()
 
+    def refresh(self):
+        self._chat_view.refresh()
+
     def start_new_chat(self, model: str = None):
         self._chat_view.start_new_chat(model)
 

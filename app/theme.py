@@ -455,13 +455,13 @@ def danger_button_style() -> str:
 def tag_badge_style(color: str) -> str:
     """Style for capability tag badges."""
     return f"""
-        background-color: {color}22;
-        color: {color};
-        border: 1px solid {color}44;
-        border-radius: 10px;
-        padding: 2px 10px;
+        background-color: {color}26;
+        color: {COLORS.text_primary};
+        border: 1px solid {color}55;
+        border-radius: 12px;
+        padding: 3px 10px;
         font-size: 11px;
-        font-weight: 600;
+        font-weight: 700;
     """
 
 

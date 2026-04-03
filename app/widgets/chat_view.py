@@ -90,19 +90,23 @@ class ChatView(QWidget):
         top_layout.setContentsMargins(16, 0, 16, 0)
 
         # Back button
-        back_btn = QPushButton("←")
+        back_btn = QPushButton("← Back")
         back_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        back_btn.setFixedSize(36, 36)
+        back_btn.setFixedSize(90, 36)
         back_btn.setStyleSheet(f"""
             QPushButton {{
                 background: {COLORS.bg_elevated};
                 color: {COLORS.text_primary};
-                border: 1px solid {COLORS.border_default};
-                border-radius: 18px;
-                font-size: 16px;
+                border: 1px solid {COLORS.border_hover};
+                border-radius: 10px;
+                font-size: 13px;
+                font-weight: 600;
+                padding: 0 12px;
+                text-align: left;
             }}
             QPushButton:hover {{
                 background: {COLORS.bg_hover};
+                border-color: {COLORS.accent_primary};
             }}
         """)
         back_btn.clicked.connect(self.back_requested.emit)
@@ -111,11 +115,61 @@ class ChatView(QWidget):
         top_layout.addSpacing(12)
 
         # Model selector
+        model_picker = QWidget()
+        model_picker.setFixedHeight(36)
+        model_picker.setStyleSheet(f"""
+            QWidget {{
+                background-color: {COLORS.bg_elevated};
+                border: 1px solid {COLORS.border_hover};
+                border-radius: 12px;
+            }}
+        """)
+        model_picker_layout = QHBoxLayout(model_picker)
+        model_picker_layout.setContentsMargins(12, 0, 10, 0)
+        model_picker_layout.setSpacing(8)
+
         self._model_combo = QComboBox()
-        self._model_combo.setFixedHeight(36)
-        self._model_combo.setMinimumWidth(200)
+        self._model_combo.setFixedHeight(30)
+        self._model_combo.setMinimumWidth(180)
+        self._model_combo.setStyleSheet(f"""
+            QComboBox {{
+                background: transparent;
+                color: {COLORS.text_primary};
+                border: none;
+                padding: 0px;
+                font-size: 13px;
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 0px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {COLORS.bg_elevated};
+                color: {COLORS.text_primary};
+                border: 1px solid {COLORS.border_default};
+                selection-background-color: {COLORS.bg_hover};
+                selection-color: {COLORS.text_primary};
+                outline: none;
+            }}
+        """)
         self._model_combo.currentTextChanged.connect(self._on_model_changed)
-        top_layout.addWidget(self._model_combo)
+        model_picker_layout.addWidget(self._model_combo, 1)
+
+        model_arrow = QLabel("▾")
+        model_arrow.setStyleSheet(f"""
+            color: {COLORS.accent_primary};
+            background: transparent;
+            font-size: 14px;
+            font-weight: 700;
+        """)
+        model_arrow.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        model_picker_layout.addWidget(model_arrow)
+
+        model_picker.mousePressEvent = lambda event, combo=self._model_combo: combo.showPopup()
+        top_layout.addWidget(model_picker)
 
         top_layout.addStretch()
 
@@ -586,6 +640,15 @@ class ChatView(QWidget):
             self._msg_scroll.verticalScrollBar().maximum()
         ))
 
+    def refresh(self):
+        """Refresh models and chat history from storage."""
+        self.load_models()
+        self._refresh_history()
+
+    def refresh_history(self):
+        """Refresh only the chat history sidebar."""
+        self._refresh_history()
+
     def _on_model_changed(self, model_name: str):
         """Handle model selection change."""
         if model_name:
@@ -656,20 +719,21 @@ class ChatView(QWidget):
         for conv in conversations[:30]:  # Max 30 shown
             btn = QPushButton(conv["title"])
             btn.setCursor(QCursor(Qt.PointingHandCursor))
-            btn.setFixedHeight(36)
+            btn.setFixedHeight(48)
             btn.setToolTip(f"{conv['model']} • {conv['created_at'][:10]}")
 
             is_active = conv["id"] == self._conversation_id
             if is_active:
                 btn.setStyleSheet(f"""
                     QPushButton {{
-                        background: {COLORS.bg_hover};
+                        background: {COLORS.bg_elevated};
                         color: {COLORS.text_primary};
-                        border: none;
-                        border-radius: 8px;
+                        border: 1px solid {COLORS.accent_primary}66;
+                        border-radius: 10px;
                         text-align: left;
-                        padding: 4px 12px;
-                        font-size: 12px;
+                        padding: 8px 14px;
+                        font-size: 13px;
+                        font-weight: 600;
                     }}
                 """)
             else:
@@ -678,10 +742,10 @@ class ChatView(QWidget):
                         background: transparent;
                         color: {COLORS.text_secondary};
                         border: none;
-                        border-radius: 8px;
+                        border-radius: 10px;
                         text-align: left;
-                        padding: 4px 12px;
-                        font-size: 12px;
+                        padding: 8px 14px;
+                        font-size: 13px;
                     }}
                     QPushButton:hover {{
                         background: {COLORS.bg_surface};

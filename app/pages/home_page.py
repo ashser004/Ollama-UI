@@ -4,11 +4,12 @@ home_page.py — Main dashboard after setup.
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QFrame, QGridLayout,
-                                QGraphicsDropShadowEffect, QSizePolicy)
+                                QGraphicsDropShadowEffect, QSizePolicy,
+                                QLineEdit, QComboBox)
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QFont, QCursor, QColor
 
-from app.theme import COLORS, accent_button_style, card_style
+from app.theme import COLORS, accent_button_style, card_style, search_bar_style
 from app.ollama.api import OllamaAPI
 from app.services.system_monitor import SystemMonitor
 from app import config, database as db
@@ -165,6 +166,75 @@ class HomePage(QWidget):
         recent_header.addStretch()
         layout.addLayout(recent_header)
 
+        recent_controls = QHBoxLayout()
+        recent_controls.setSpacing(12)
+
+        self._recent_search = QLineEdit()
+        self._recent_search.setPlaceholderText("Search recent chats or messages...")
+        self._recent_search.setFixedHeight(42)
+        self._recent_search.setStyleSheet(search_bar_style())
+        self._recent_search.textChanged.connect(self._refresh_recent_conversations)
+        recent_controls.addWidget(self._recent_search, 1)
+
+        filter_shell = QWidget()
+        filter_shell.setFixedHeight(42)
+        filter_shell.setStyleSheet(f"""
+            QWidget {{
+                background-color: {COLORS.bg_elevated};
+                border: 1px solid {COLORS.border_hover};
+                border-radius: 12px;
+            }}
+        """)
+        filter_layout = QHBoxLayout(filter_shell)
+        filter_layout.setContentsMargins(12, 0, 10, 0)
+        filter_layout.setSpacing(8)
+
+        self._recent_model_filter = QComboBox()
+        self._recent_model_filter.setFixedHeight(30)
+        self._recent_model_filter.setMinimumWidth(180)
+        self._recent_model_filter.setStyleSheet(f"""
+            QComboBox {{
+                background: transparent;
+                color: {COLORS.text_primary};
+                border: none;
+                padding: 0px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 0px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {COLORS.bg_elevated};
+                color: {COLORS.text_primary};
+                border: 1px solid {COLORS.border_default};
+                selection-background-color: {COLORS.bg_hover};
+                selection-color: {COLORS.text_primary};
+                outline: none;
+            }}
+        """)
+        self._recent_model_filter.currentTextChanged.connect(self._refresh_recent_conversations)
+        filter_layout.addWidget(self._recent_model_filter, 1)
+
+        filter_arrow = QLabel("▾")
+        filter_arrow.setStyleSheet(f"""
+            color: {COLORS.accent_primary};
+            background: transparent;
+            font-size: 14px;
+            font-weight: 700;
+        """)
+        filter_arrow.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        filter_layout.addWidget(filter_arrow)
+
+        filter_shell.mousePressEvent = lambda event, combo=self._recent_model_filter: combo.showPopup()
+        recent_controls.addWidget(filter_shell)
+
+        layout.addLayout(recent_controls)
+
         self._recent_container = QVBoxLayout()
         self._recent_container.setSpacing(8)
         layout.addLayout(self._recent_container)
@@ -243,36 +313,70 @@ class HomePage(QWidget):
         ram_total = self._monitor.get_available_ram_gb()
         self._ram_stat.set_value(f"{ram_total:.0f} GB")
 
-        # Recent conversations
+        self._populate_recent_filters()
+        self._refresh_recent_conversations()
+
+    def _populate_recent_filters(self):
+        """Populate the recent-chat model filter from installed models."""
+        current = self._recent_model_filter.currentText() if hasattr(self, "_recent_model_filter") else "All Models"
+        models = []
+        for item in self._api.list_models():
+            name = item.get("name")
+            if name:
+                models.append(name)
+
+        self._recent_model_filter.blockSignals(True)
+        self._recent_model_filter.clear()
+        self._recent_model_filter.addItem("All Models")
+        for name in models:
+            self._recent_model_filter.addItem(name)
+
+        idx = self._recent_model_filter.findText(current)
+        self._recent_model_filter.setCurrentIndex(idx if idx >= 0 else 0)
+        self._recent_model_filter.blockSignals(False)
+
+    def _refresh_recent_conversations(self):
+        """Refresh the recent conversation cards based on search and model filter."""
         while self._recent_container.count():
             item = self._recent_container.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        if not convs:
-            empty = QLabel("No conversations yet. Start a chat to get going!")
+        query = self._recent_search.text().strip() if hasattr(self, "_recent_search") else ""
+        selected_model = self._recent_model_filter.currentText() if hasattr(self, "_recent_model_filter") else "All Models"
+        conversations = db.search_conversations(query, selected_model)
+
+        if not conversations:
+            if query or selected_model != "All Models":
+                empty_text = "No recent chats match your search or filter."
+            else:
+                empty_text = "No conversations yet. Start a chat to get going!"
+
+            empty = QLabel(empty_text)
+            empty.setWordWrap(True)
             empty.setStyleSheet(f"color: {COLORS.text_muted}; font-size: 13px; background: transparent; padding: 16px;")
             self._recent_container.addWidget(empty)
-        else:
-            for conv in convs[:5]:
-                row = QPushButton(f"  {conv['title']}  —  {conv['model']}  ·  {conv['created_at'][:10]}")
-                row.setCursor(QCursor(Qt.PointingHandCursor))
-                row.setFixedHeight(44)
-                row.setStyleSheet(f"""
-                    QPushButton {{
-                        background: {COLORS.bg_surface};
-                        color: {COLORS.text_secondary};
-                        border: 1px solid {COLORS.border_default};
-                        border-radius: 10px;
-                        text-align: left;
-                        padding: 0 16px;
-                        font-size: 12px;
-                    }}
-                    QPushButton:hover {{
-                        background: {COLORS.bg_elevated};
-                        color: {COLORS.text_primary};
-                        border-color: {COLORS.border_hover};
-                    }}
-                """)
-                row.clicked.connect(lambda checked, cid=conv["id"]: self.open_chat_conv.emit(cid))
-                self._recent_container.addWidget(row)
+            return
+
+        for conv in conversations[:5]:
+            row = QPushButton(f"  {conv['title']}  —  {conv['model']}  ·  {conv['created_at'][:10]}")
+            row.setCursor(QCursor(Qt.PointingHandCursor))
+            row.setFixedHeight(50)
+            row.setStyleSheet(f"""
+                QPushButton {{
+                    background: {COLORS.bg_elevated};
+                    color: {COLORS.text_secondary};
+                    border: 1px solid {COLORS.border_default};
+                    border-radius: 12px;
+                    text-align: left;
+                    padding: 8px 16px;
+                    font-size: 12px;
+                }}
+                QPushButton:hover {{
+                    background: {COLORS.bg_hover};
+                    color: {COLORS.text_primary};
+                    border-color: {COLORS.accent_primary};
+                }}
+            """)
+            row.clicked.connect(lambda checked, cid=conv["id"]: self.open_chat_conv.emit(cid))
+            self._recent_container.addWidget(row)
