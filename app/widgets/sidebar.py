@@ -198,7 +198,7 @@ class Sidebar(QWidget):
         self.setStyleSheet(f"""
             QWidget {{
                 background-color: {COLORS.sidebar_bg};
-                border-right: 1px solid {COLORS.border_default};
+                border-right: 2px solid {COLORS.border_hover};
             }}
         """)
 

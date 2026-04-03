@@ -599,6 +599,11 @@ def main():
     app.setStyle("Fusion")
     app.setStyleSheet(get_stylesheet())
 
+    app_icon_path = os.path.join(config.get_project_root(), "app", "icon", "icon-ui.png")
+    app_icon = QIcon(app_icon_path)
+    if not app_icon.isNull():
+        app.setWindowIcon(app_icon)
+
     splash_path = os.path.join(config.get_project_root(), "app", "icon", "splash-screen.png")
     splash_pixmap = QPixmap(splash_path)
     if not splash_pixmap.isNull() and app.primaryScreen():
@@ -623,6 +628,8 @@ def main():
     app.processEvents()
 
     window = MainWindow()
+    if not app_icon.isNull():
+        window.setWindowIcon(app_icon)
 
     def _finish_startup():
         window.show()
