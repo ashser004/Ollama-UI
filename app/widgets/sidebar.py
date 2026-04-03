@@ -32,6 +32,7 @@ class SidebarButton(QPushButton):
     def set_expanded(self, expanded: bool):
         self._expanded = expanded
         self._update_display()
+        self._apply_style()
 
     def _update_display(self):
         if self._expanded:
@@ -42,6 +43,10 @@ class SidebarButton(QPushButton):
             self.setMinimumWidth(56)
 
     def _apply_style(self):
+        text_align = "left" if self._expanded else "center"
+        padding_left = "16px" if self._expanded else "0px"
+        margin = "2px 10px" if self._expanded else "2px 4px"
+
         if self._is_active:
             self.setStyleSheet(f"""
                 QPushButton {{
@@ -49,9 +54,9 @@ class SidebarButton(QPushButton):
                     color: {COLORS.accent_primary};
                     border: 1px solid {COLORS.accent_primary};
                     border-radius: 12px;
-                    text-align: left;
-                    padding-left: 16px;
-                    margin: 2px 10px;
+                    text-align: {text_align};
+                    padding-left: {padding_left};
+                    margin: {margin};
                     font-size: 13px;
                     font-weight: 600;
                 }}
@@ -63,9 +68,9 @@ class SidebarButton(QPushButton):
                     color: {COLORS.text_secondary};
                     border: 1px solid transparent;
                     border-radius: 12px;
-                    text-align: left;
-                    padding-left: 16px;
-                    margin: 2px 10px;
+                    text-align: {text_align};
+                    padding-left: {padding_left};
+                    margin: {margin};
                     font-size: 13px;
                 }}
                 QPushButton:hover {{
@@ -115,15 +120,15 @@ class Sidebar(QWidget):
         logo_layout = QVBoxLayout(logo_container)
         logo_layout.setContentsMargins(20, 16, 20, 8)
 
-        self._title_label = QLabel("LOCAL AI")
-        self._title_label.setStyleSheet(f"""
-            font-size: 18px;
-            font-weight: 900;
-            letter-spacing: 2px;
-            color: {COLORS.accent_primary};
-            background: transparent;
+        self._title_label = QLabel()
+        self._title_label.setFixedSize(36, 36)
+        self._title_label.setStyleSheet("""
+            QLabel {
+                border-image: url(app/icon/icon-ui.png) 0 0 0 0 stretch stretch;
+                border-radius: 5px;
+                background: transparent;
+            }
         """)
-        self._title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         logo_layout.addWidget(self._title_label)
 
         layout.addWidget(logo_container)
@@ -204,7 +209,28 @@ class Sidebar(QWidget):
         for btn in self._buttons.values():
             btn.set_expanded(self._expanded)
 
-        self._collapse_btn.setText("◀  Collapse" if self._expanded else "▶")
+        if self._expanded:
+            self._collapse_btn.setText("◀  Collapse")
+            pad = "2px 12px"
+        else:
+            self._collapse_btn.setText("▶")
+            pad = "2px 5px"
+
+        self._collapse_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {COLORS.text_muted};
+                border: 1px solid {COLORS.border_default};
+                border-radius: 6px;
+                font-size: 11px;
+                padding: {pad};
+            }}
+            QPushButton:hover {{
+                background: {COLORS.bg_hover};
+                color: {COLORS.text_primary};
+            }}
+        """)
+
         self._title_label.setVisible(self._expanded)
 
     def set_page(self, page_key: str):
