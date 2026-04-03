@@ -331,21 +331,16 @@ class ChatView(QWidget):
         self._empty_overlay.setStyleSheet(f"background-color: {COLORS.bg_base};")
 
         overlay_layout = QVBoxLayout(self._empty_overlay)
+        overlay_layout.setContentsMargins(32, 32, 32, 32)
         overlay_layout.setAlignment(Qt.AlignCenter)
 
         empty_card = QWidget()
-        empty_card.setFixedSize(420, 300)
-        empty_card.setStyleSheet(f"""
-            QWidget {{
-                background-color: {COLORS.bg_surface};
-                border: 1px solid {COLORS.border_default};
-                border-radius: 20px;
-            }}
-        """)
+        empty_card.setMaximumWidth(420)
+        empty_card.setStyleSheet("background: transparent;")
 
         empty_card_layout = QVBoxLayout(empty_card)
-        empty_card_layout.setContentsMargins(40, 36, 40, 36)
-        empty_card_layout.setSpacing(10)
+        empty_card_layout.setContentsMargins(24, 12, 24, 12)
+        empty_card_layout.setSpacing(12)
         empty_card_layout.setAlignment(Qt.AlignCenter)
 
         empty_icon = QLabel("◇")
@@ -361,10 +356,18 @@ class ChatView(QWidget):
         """)
         empty_card_layout.addWidget(empty_title)
 
+        divider = QFrame()
+        divider.setFrameShape(QFrame.HLine)
+        divider.setFrameShadow(QFrame.Plain)
+        divider.setFixedHeight(1)
+        divider.setMaximumWidth(240)
+        divider.setStyleSheet(f"background-color: {COLORS.border_default}; border: none;")
+        empty_card_layout.addWidget(divider)
+
         empty_desc = QLabel("You need to download an AI model before\nyou can start chatting.")
         empty_desc.setAlignment(Qt.AlignCenter)
         empty_desc.setWordWrap(True)
-        empty_desc.setStyleSheet(f"color: {COLORS.text_secondary}; font-size: 13px; background: transparent;")
+        empty_desc.setStyleSheet(f"color: {COLORS.text_secondary}; font-size: 13px; background: transparent; line-height: 1.5;")
         empty_card_layout.addWidget(empty_desc)
 
         empty_card_layout.addSpacing(12)

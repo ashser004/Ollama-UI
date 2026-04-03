@@ -4,6 +4,7 @@
 
 # --- Prompt / notes ---
 prompt.txt
+.localaiui-worklog.md
 
 # --- Python ---
 __pycache__/
