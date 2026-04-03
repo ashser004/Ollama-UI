@@ -13,47 +13,47 @@ class Colors:
     """Central color palette — single source of truth."""
 
     # Backgrounds
-    bg_darkest: str = "#07070d"
-    bg_dark: str = "#0c0c14"
-    bg_base: str = "#10101c"
-    bg_surface: str = "#16162a"
-    bg_elevated: str = "#1c1c38"
-    bg_hover: str = "#222248"
-    bg_active: str = "#2a2a58"
+    bg_darkest: str = "#080c14"
+    bg_dark: str = "#0b121d"
+    bg_base: str = "#111b2b"
+    bg_surface: str = "#18263d"
+    bg_elevated: str = "#1d2e4a"
+    bg_hover: str = "#243a5e"
+    bg_active: str = "#2c4875"
 
     # Accents
-    accent_primary: str = "#7c5cfc"
-    accent_secondary: str = "#5c8afc"
-    accent_hover: str = "#9478ff"
-    accent_gradient_start: str = "#7c5cfc"
-    accent_gradient_end: str = "#5c8afc"
+    accent_primary: str = "#0ea5e9"
+    accent_secondary: str = "#38bdf8"
+    accent_hover: str = "#7dd3fc"
+    accent_gradient_start: str = "#0ea5e9"
+    accent_gradient_end: str = "#38bdf8"
 
     # Text
-    text_primary: str = "#e8e6f0"
-    text_secondary: str = "#9996b0"
-    text_muted: str = "#6b6880"
+    text_primary: str = "#f1f5f9"
+    text_secondary: str = "#94a3b8"
+    text_muted: str = "#64748b"
     text_on_accent: str = "#ffffff"
 
     # Borders
-    border_default: str = "#1e1e3a"
-    border_hover: str = "#2e2e5a"
-    border_accent: str = "#7c5cfc"
+    border_default: str = "#1e293b"
+    border_hover: str = "#334155"
+    border_accent: str = "#0ea5e9"
 
     # Semantic
-    success: str = "#34d399"
-    warning: str = "#fbbf24"
-    error: str = "#f87171"
-    info: str = "#60a5fa"
+    success: str = "#10b981"
+    warning: str = "#f59e0b"
+    error: str = "#ef4444"
+    info: str = "#3b82f6"
 
     # Scrollbar
-    scrollbar_bg: str = "#0c0c14"
-    scrollbar_handle: str = "#2a2a58"
-    scrollbar_hover: str = "#3a3a68"
+    scrollbar_bg: str = "#0b121d"
+    scrollbar_handle: str = "#243a5e"
+    scrollbar_hover: str = "#2c4875"
 
     # Sidebar
-    sidebar_bg: str = "#0a0a16"
-    sidebar_hover: str = "#14142a"
-    sidebar_active: str = "#1a1a38"
+    sidebar_bg: str = "#080c14"
+    sidebar_hover: str = "#111b2b"
+    sidebar_active: str = "#18263d"
 
     # Chat
     chat_user_bg: str = "#1e1e50"

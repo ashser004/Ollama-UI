@@ -25,6 +25,9 @@ class StatCard(QWidget):
                 border: 1px solid {COLORS.border_default};
                 border-radius: 14px;
             }}
+            QWidget#statCard:hover {{
+                border: 1px solid {accent_color}80;
+            }}
         """)
         self.setObjectName("statCard")
 
@@ -40,7 +43,7 @@ class StatCard(QWidget):
         self._value = QLabel(value)
         self._value.setStyleSheet(f"""
             font-size: 22px; font-weight: 800;
-            color: {COLORS.text_primary}; background: transparent;
+            color: {accent_color}; background: transparent;
         """)
         layout.addWidget(self._value)
 
@@ -74,7 +77,7 @@ class HomePage(QWidget):
 
         greeting = QLabel("Welcome back")
         greeting.setStyleSheet(f"""
-            font-size: 28px; font-weight: 800;
+            font-size: 32px; font-weight: 900;
             color: {COLORS.text_primary}; background: transparent;
         """)
         header.addWidget(greeting)
@@ -154,15 +157,15 @@ class HomePage(QWidget):
         card.setFixedHeight(80)
         card.setStyleSheet(f"""
             QPushButton {{
-                background-color: {accent_color}26;
-                border: 1px solid {accent_color}4d;
+                background-color: {COLORS.bg_surface};
+                border: 1px solid {accent_color}66;
                 border-radius: 14px;
                 text-align: center;
                 padding: 18px;
             }}
             QPushButton:hover {{
-                border-color: {accent_color}80;
-                background-color: {accent_color}33;
+                border: 1px solid {accent_color};
+                background-color: {accent_color}1a;
             }}
         """)
         card.clicked.connect(callback)
@@ -174,15 +177,15 @@ class HomePage(QWidget):
 
         title_label = QLabel(title)
         title_label.setStyleSheet(f"""
-            font-size: 15px; font-weight: 700;
-            color: {COLORS.bg_darkest}; background: transparent;
+            font-size: 15px; font-weight: 800;
+            color: {COLORS.text_primary}; background: transparent;
         """)
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setAttribute(Qt.WA_TransparentForMouseEvents)
         card_layout.addWidget(title_label)
 
         desc_label = QLabel(desc)
-        desc_label.setStyleSheet(f"font-size: 12px; color: {COLORS.bg_dark}; background: transparent;")
+        desc_label.setStyleSheet(f"font-size: 12px; color: {accent_color}; background: transparent;")
         desc_label.setAlignment(Qt.AlignCenter)
         desc_label.setAttribute(Qt.WA_TransparentForMouseEvents)
         card_layout.addWidget(desc_label)

@@ -47,11 +47,11 @@ class SidebarButton(QPushButton):
                 QPushButton {{
                     background-color: {COLORS.sidebar_active};
                     color: {COLORS.accent_primary};
-                    border: none;
-                    border-left: 3px solid {COLORS.accent_primary};
-                    border-radius: 0px;
+                    border: 1px solid {COLORS.accent_primary};
+                    border-radius: 12px;
                     text-align: left;
                     padding-left: 16px;
+                    margin: 2px 10px;
                     font-size: 13px;
                     font-weight: 600;
                 }}
@@ -61,11 +61,11 @@ class SidebarButton(QPushButton):
                 QPushButton {{
                     background-color: transparent;
                     color: {COLORS.text_secondary};
-                    border: none;
-                    border-left: 3px solid transparent;
-                    border-radius: 0px;
+                    border: 1px solid transparent;
+                    border-radius: 12px;
                     text-align: left;
                     padding-left: 16px;
+                    margin: 2px 10px;
                     font-size: 13px;
                 }}
                 QPushButton:hover {{
@@ -82,12 +82,12 @@ class Sidebar(QWidget):
 
     # Navigation items: (icon, label, page_key)
     NAV_ITEMS = [
-        ("▣", "Home", "home"),
-        ("◈", "Discover", "discover"),
-        ("▸", "Chat", "chat"),
-        ("◫", "Manage", "manage"),
+        ("⌂", "Home", "home"),
+        ("⚲", "Discover", "discover"),
+        ("💬", "Chat", "chat"),
+        ("⚙", "Manage", "manage"),
         ("≡", "Logs", "logs"),
-        ("◉", "About", "about"),
+        ("ℹ", "About", "about"),
     ]
 
     def __init__(self, parent=None):
@@ -115,10 +115,11 @@ class Sidebar(QWidget):
         logo_layout = QVBoxLayout(logo_container)
         logo_layout.setContentsMargins(20, 16, 20, 8)
 
-        self._title_label = QLabel("Local AI(UI)")
+        self._title_label = QLabel("LOCAL AI")
         self._title_label.setStyleSheet(f"""
             font-size: 18px;
-            font-weight: 800;
+            font-weight: 900;
+            letter-spacing: 2px;
             color: {COLORS.accent_primary};
             background: transparent;
         """)
