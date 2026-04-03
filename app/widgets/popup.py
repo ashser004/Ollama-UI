@@ -19,7 +19,6 @@ class ToastNotification(QWidget):
     def __init__(self, message: str, toast_type: str = "info",
                  duration_ms: int = 4000, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedWidth(400)
 
@@ -118,12 +117,17 @@ class ToastNotification(QWidget):
         anim.start()
 
     def show_at(self, parent_widget: QWidget):
-        """Show toast at top-right of parent."""
+        """Show toast horizontally centered, 20% up from bottom of parent."""
         if parent_widget:
-            parent_geo = parent_widget.geometry()
-            x = parent_geo.x() + parent_geo.width() - self.width() - 20
-            y = parent_geo.y() + 60
+            if self.parent() is None:
+                self.setParent(parent_widget)
+            
+            self.adjustSize()  # Ensure widget computes its height
+            
+            x = (parent_widget.width() - self.width()) // 2
+            y = int(parent_widget.height() * 0.8)
             self.move(x, y)
+        self.raise_()
         self.show()
 
 
