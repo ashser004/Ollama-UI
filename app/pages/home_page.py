@@ -109,19 +109,22 @@ class HomePage(QWidget):
 
         new_chat_btn = self._make_action_card(
             "New Chat", "Start a conversation with an AI model",
-            self._on_new_chat_click
+            self._on_new_chat_click,
+            COLORS.accent_primary
         )
         actions_layout.addWidget(new_chat_btn)
 
         discover_btn = self._make_action_card(
             "Discover Models", "Browse and install AI models",
-            lambda: self.navigate_to.emit("discover")
+            lambda: self.navigate_to.emit("discover"),
+            COLORS.info
         )
         actions_layout.addWidget(discover_btn)
 
         manage_btn = self._make_action_card(
             "Manage Models", "View and manage installed models",
-            lambda: self.navigate_to.emit("manage")
+            lambda: self.navigate_to.emit("manage"),
+            COLORS.success
         )
         actions_layout.addWidget(manage_btn)
 
@@ -144,22 +147,22 @@ class HomePage(QWidget):
 
         layout.addStretch()
 
-    def _make_action_card(self, title: str, desc: str, callback) -> QWidget:
+    def _make_action_card(self, title: str, desc: str, callback, accent_color: str) -> QWidget:
         """Create a clickable action card — text only, no emoji icons."""
         card = QPushButton()
         card.setCursor(QCursor(Qt.PointingHandCursor))
         card.setFixedHeight(80)
         card.setStyleSheet(f"""
             QPushButton {{
-                background-color: {COLORS.bg_surface};
-                border: 1px solid {COLORS.border_default};
+                background-color: {accent_color}26;
+                border: 1px solid {accent_color}4d;
                 border-radius: 14px;
-                text-align: left;
+                text-align: center;
                 padding: 18px;
             }}
             QPushButton:hover {{
-                border-color: {COLORS.accent_primary}44;
-                background-color: {COLORS.bg_elevated};
+                border-color: {accent_color}80;
+                background-color: {accent_color}33;
             }}
         """)
         card.clicked.connect(callback)
@@ -167,17 +170,20 @@ class HomePage(QWidget):
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(0, 0, 0, 0)
         card_layout.setSpacing(4)
+        card_layout.setAlignment(Qt.AlignCenter)
 
         title_label = QLabel(title)
         title_label.setStyleSheet(f"""
             font-size: 15px; font-weight: 700;
-            color: {COLORS.text_primary}; background: transparent;
+            color: {COLORS.bg_darkest}; background: transparent;
         """)
+        title_label.setAlignment(Qt.AlignCenter)
         title_label.setAttribute(Qt.WA_TransparentForMouseEvents)
         card_layout.addWidget(title_label)
 
         desc_label = QLabel(desc)
-        desc_label.setStyleSheet(f"font-size: 12px; color: {COLORS.text_muted}; background: transparent;")
+        desc_label.setStyleSheet(f"font-size: 12px; color: {COLORS.bg_dark}; background: transparent;")
+        desc_label.setAlignment(Qt.AlignCenter)
         desc_label.setAttribute(Qt.WA_TransparentForMouseEvents)
         card_layout.addWidget(desc_label)
 
