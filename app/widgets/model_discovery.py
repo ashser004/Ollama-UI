@@ -126,7 +126,7 @@ class ModelDiscovery(QWidget):
         if disk_free < 10:
             self._warning_bar.setVisible(True)
             self._warning_text.setText(
-                f"⚠️ Only {disk_free:.1f} GB free. You need at least 10 GB to install models. "
+                f"Only {disk_free:.1f} GB free. You need at least 10 GB to install models. "
                 f"Free up space or choose another drive."
             )
         else:

@@ -101,7 +101,7 @@ class OllamaAPI(QObject):
         super().__init__(parent)
         self._base_url = base_url
         self._current_stream: _StreamWorker | None = None
-        self._current_pull: _PullWorker | None = None
+        self._active_pulls: dict[str, _PullWorker] = {}
 
     @property
     def base_url(self) -> str:
@@ -156,19 +156,33 @@ class OllamaAPI(QObject):
         """
         Start pulling a model. Returns a PullWorker thread.
         Connect to its .progress and .finished_signal signals.
+        Supports multiple concurrent pulls.
         """
-        if self._current_pull and self._current_pull.isRunning():
-            self._current_pull.abort()
-            self._current_pull.wait(3000)
+        # If this model is already being pulled, abort the old one
+        if name in self._active_pulls:
+            old = self._active_pulls[name]
+            if old.isRunning():
+                old.abort()
+                old.wait(3000)
 
         worker = _PullWorker(f"{self._base_url}/api/pull", name, self)
-        self._current_pull = worker
+        self._active_pulls[name] = worker
+
+        # Clean up reference when finished
+        worker.finished_signal.connect(lambda s, m: self._active_pulls.pop(name, None))
+
         return worker
 
-    def cancel_pull(self):
-        """Cancel an ongoing model pull."""
-        if self._current_pull and self._current_pull.isRunning():
-            self._current_pull.abort()
+    def cancel_pull(self, name: str = None):
+        """Cancel an ongoing model pull. If name is None, cancel all."""
+        if name:
+            worker = self._active_pulls.get(name)
+            if worker and worker.isRunning():
+                worker.abort()
+        else:
+            for w in self._active_pulls.values():
+                if w.isRunning():
+                    w.abort()
 
     # ─── Chat (streaming) ─────────────────────────
 

@@ -158,7 +158,7 @@ class StorageDialog(QWidget):
 
             if free < config.MIN_DISK_FOR_SETUP_GB:
                 self._warning_label.setText(
-                    f"⚠️ Need at least {config.MIN_DISK_FOR_SETUP_GB} GB free space."
+                    f"Need at least {config.MIN_DISK_FOR_SETUP_GB} GB free space."
                 )
                 self._continue_btn.setEnabled(False)
             else:

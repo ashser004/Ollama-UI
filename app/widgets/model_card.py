@@ -131,7 +131,7 @@ class ModelCard(QWidget):
             del_btn.clicked.connect(lambda: self.delete_requested.emit(self._model))
             action_layout.addWidget(del_btn)
         else:
-            self._install_btn = QPushButton("Install" if can_install else "⚠️ " + warning)
+            self._install_btn = QPushButton("Install" if can_install else "! " + warning)
             self._install_btn.setCursor(Qt.PointingHandCursor)
             self._install_btn.setFixedHeight(32)
             self._install_btn.setEnabled(can_install)
@@ -152,6 +152,15 @@ class ModelCard(QWidget):
             action_layout.addWidget(self._install_btn)
 
         layout.addLayout(action_layout)
+
+    def set_downloading(self):
+        """Set the card into downloading state (for reconnection after tab switch)."""
+        self._is_downloading = True
+        self._progress.setVisible(True)
+        self._progress_label.setVisible(True)
+        self._progress_label.setText("Downloading...")
+        if hasattr(self, '_install_btn'):
+            self._install_btn.setVisible(False)
 
     def _on_install_click(self):
         """Handle install button click."""
@@ -184,7 +193,7 @@ class ModelCard(QWidget):
         self._progress_label.setVisible(False)
         if hasattr(self, '_install_btn'):
             if success:
-                self._install_btn.setText("✅ Installed")
+                self._install_btn.setText("Installed")
                 self._install_btn.setEnabled(False)
             else:
                 self._install_btn.setText("Retry Install")

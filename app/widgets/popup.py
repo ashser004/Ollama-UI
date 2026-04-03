@@ -31,12 +31,12 @@ class ToastNotification(QWidget):
 
         # Icons by type
         type_icons = {
-            "info": "ℹ️",
-            "success": "✅",
-            "warning": "⚠️",
-            "error": "❌",
+            "info": "i",
+            "success": "✓",
+            "warning": "!",
+            "error": "✕",
         }
-        icon = type_icons.get(toast_type, "ℹ️")
+        icon = type_icons.get(toast_type, "i")
 
         # Container
         container = QWidget()
@@ -54,8 +54,9 @@ class ToastNotification(QWidget):
         layout.setContentsMargins(12, 10, 12, 10)
 
         icon_label = QLabel(icon)
-        icon_label.setStyleSheet(f"font-size: 16px; color: {COLORS.text_primary}; background: transparent;")
-        icon_label.setFixedWidth(30)
+        icon_label.setStyleSheet(f"font-size: 16px; font-weight: 800; color: {color}; background: transparent;")
+        icon_label.setFixedWidth(24)
+        icon_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(icon_label)
 
         msg_label = QLabel(message)

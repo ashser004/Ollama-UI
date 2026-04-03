@@ -117,7 +117,7 @@ class InstallOllamaWidget(QWidget):
         card_layout.addWidget(self._retry_btn)
 
         # Do-not-close warning (hidden until download starts)
-        self._warning_label = QLabel("⚠️  Please do not close the app while downloading")
+        self._warning_label = QLabel("Please do not close the app while downloading")
         self._warning_label.setAlignment(Qt.AlignCenter)
         self._warning_label.setVisible(False)
         self._warning_label.setStyleSheet(f"""

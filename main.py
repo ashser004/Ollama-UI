@@ -47,6 +47,9 @@ class MainWindow(QMainWindow):
         self._catalog = ModelCatalog()
         self._monitor = SystemMonitor(parent=self)
 
+        # Active model downloads: tag -> PullWorker
+        self._active_pulls: dict = {}
+
         # ─── Central widget ───────────────────────
         central = QWidget()
         self.setCentralWidget(central)
@@ -215,6 +218,8 @@ class MainWindow(QMainWindow):
                 page.refresh()
             if page_key == "chat":
                 self._chat_page.load_models()
+            if page_key == "discover":
+                self._reconnect_active_downloads()
 
     def _open_chat_model(self, model_name: str):
         """Open chat with a specific model."""
@@ -234,6 +239,11 @@ class MainWindow(QMainWindow):
         size_gb = model.get("size_gb", 0)
         min_ram = model.get("min_ram_gb", 0)
 
+        # Already downloading?
+        if tag in self._active_pulls:
+            self._show_toast(f"{model.get('name', tag)} is already downloading", "info")
+            return
+
         # Check compatibility
         can_install, reason = self._monitor.can_install_model(size_gb, min_ram)
         if not can_install:
@@ -245,7 +255,10 @@ class MainWindow(QMainWindow):
         # Start pull
         worker = self._api.pull_model(tag)
 
-        # Find the card and connect progress
+        # Track the active download
+        self._active_pulls[tag] = worker
+
+        # Connect to current card (may be None if page not visible)
         card = self._discover_page.get_card_by_tag(tag)
         if card:
             worker.progress.connect(card.update_progress)
@@ -256,14 +269,34 @@ class MainWindow(QMainWindow):
         )
         worker.start()
 
+    def _reconnect_active_downloads(self):
+        """Reconnect active download workers to newly created cards."""
+        for tag, worker in list(self._active_pulls.items()):
+            if not worker.isRunning():
+                # Worker finished while we were away — clean up
+                del self._active_pulls[tag]
+                continue
+            card = self._discover_page.get_card_by_tag(tag)
+            if card:
+                # Connect signals to the new card
+                worker.progress.connect(card.update_progress)
+                worker.finished_signal.connect(card.install_finished)
+                # Set the card into downloading state immediately
+                card.set_downloading()
+
     def _on_model_installed(self, success: bool, message: str, model: dict):
         """Handle model installation completion."""
-        name = model.get("name", model.get("tag", ""))
+        tag = model.get("tag", "")
+        name = model.get("name", tag)
+
+        # Remove from active pulls
+        self._active_pulls.pop(tag, None)
+
         if success:
-            self._show_toast(f"✅ {name} installed successfully!", "success")
+            self._show_toast(f"{name} installed successfully!", "success")
             self._log_event(f"Model installed: {name}")
         else:
-            self._show_toast(f"❌ Failed to install {name}: {message}", "error")
+            self._show_toast(f"Failed to install {name}: {message}", "error")
             self._log_event(f"Model install failed: {name} — {message}")
 
     def _delete_model(self, model: dict):
@@ -299,7 +332,15 @@ class MainWindow(QMainWindow):
 
     def _is_busy_downloading(self) -> bool:
         """Check if any download is currently in progress."""
-        return self._ollama_manager.is_downloading
+        if self._ollama_manager.is_downloading:
+            return True
+        # Check active model pulls
+        for tag, worker in list(self._active_pulls.items()):
+            if worker.isRunning():
+                return True
+            else:
+                del self._active_pulls[tag]
+        return False
 
     def closeEvent(self, event):
         """Clean shutdown — warn if download is in progress."""
@@ -307,8 +348,8 @@ class MainWindow(QMainWindow):
             msg = QMessageBox(self)
             msg.setWindowTitle("Download in Progress")
             msg.setText(
-                "Ollama is still being downloaded.\n\n"
-                "Closing now will cancel the download and you'll need \n"
+                "A download is still in progress.\n\n"
+                "Closing now will cancel it and you may need\n"
                 "to restart it next time. Continue closing?"
             )
             msg.setIcon(QMessageBox.Warning)

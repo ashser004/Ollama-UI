@@ -4,7 +4,7 @@ about_dialog.py — About section showing app info and developer credits.
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QDesktopServices, QCursor
+from PySide6.QtGui import QDesktopServices, QCursor
 from PySide6.QtCore import QUrl
 
 from app.theme import COLORS
@@ -21,9 +21,9 @@ class AboutView(QWidget):
         layout.setAlignment(Qt.AlignCenter)
         layout.setSpacing(0)
 
-        # Center card — no visible border, subtle background
+        # Center card — clean, no visible border
         card = QWidget()
-        card.setFixedSize(460, 420)
+        card.setFixedWidth(460)
         card.setStyleSheet(f"""
             QWidget {{
                 background-color: {COLORS.bg_surface};
@@ -33,21 +33,20 @@ class AboutView(QWidget):
         """)
 
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(48, 40, 48, 40)
-        card_layout.setSpacing(6)
-        card_layout.setAlignment(Qt.AlignCenter)
+        card_layout.setContentsMargins(48, 44, 48, 44)
+        card_layout.setSpacing(0)
 
-        # App icon — styled text instead of emoji
+        # App icon
         icon = QLabel("◆")
         icon.setAlignment(Qt.AlignCenter)
         icon.setStyleSheet(f"""
-            font-size: 36px;
+            font-size: 32px;
             color: {COLORS.accent_primary};
             background: transparent;
         """)
         card_layout.addWidget(icon)
 
-        card_layout.addSpacing(10)
+        card_layout.addSpacing(14)
 
         # App name
         name = QLabel(config.APP_NAME)
@@ -58,6 +57,8 @@ class AboutView(QWidget):
         """)
         card_layout.addWidget(name)
 
+        card_layout.addSpacing(4)
+
         # Version
         version = QLabel(f"Version {config.APP_VERSION}")
         version.setAlignment(Qt.AlignCenter)
@@ -67,7 +68,7 @@ class AboutView(QWidget):
         """)
         card_layout.addWidget(version)
 
-        card_layout.addSpacing(24)
+        card_layout.addSpacing(28)
 
         # Description
         desc = QLabel(
@@ -81,19 +82,18 @@ class AboutView(QWidget):
             color: {COLORS.text_secondary};
             font-size: 13px;
             background: transparent;
-            line-height: 1.6;
         """)
         card_layout.addWidget(desc)
 
-        card_layout.addSpacing(28)
+        card_layout.addSpacing(32)
 
-        # Separator — thin line
+        # Separator
         sep = QWidget()
         sep.setFixedHeight(1)
         sep.setStyleSheet(f"background-color: {COLORS.border_default};")
         card_layout.addWidget(sep)
 
-        card_layout.addSpacing(20)
+        card_layout.addSpacing(24)
 
         # Developer info
         dev_label = QLabel("Developed by")
@@ -101,18 +101,20 @@ class AboutView(QWidget):
         dev_label.setStyleSheet(f"color: {COLORS.text_muted}; font-size: 11px; background: transparent;")
         card_layout.addWidget(dev_label)
 
+        card_layout.addSpacing(4)
+
         dev_name = QLabel(config.DEVELOPER)
         dev_name.setAlignment(Qt.AlignCenter)
         dev_name.setStyleSheet(f"""
-            font-size: 16px; font-weight: 700;
+            font-size: 17px; font-weight: 700;
             color: {COLORS.text_primary}; background: transparent;
         """)
         card_layout.addWidget(dev_name)
 
-        card_layout.addSpacing(16)
+        card_layout.addSpacing(20)
 
-        # GitHub button — kept star as requested
-        github_btn = QPushButton("  View on GitHub")
+        # GitHub button — gradient accent
+        github_btn = QPushButton("View on GitHub")
         github_btn.setCursor(QCursor(Qt.PointingHandCursor))
         github_btn.setFixedHeight(42)
         github_btn.setFixedWidth(200)

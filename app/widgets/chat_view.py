@@ -565,7 +565,7 @@ class ChatView(QWidget):
                 labels = self._current_bubble.findChildren(QLabel)
                 for label in labels:
                     if label.textInteractionFlags() & Qt.TextSelectableByMouse:
-                        label.setText(f"⚠️ Error: {full_response}")
+                        label.setText(f"Error: {full_response}")
                         label.setStyleSheet(f"color: {COLORS.error}; font-size: 13px; background: transparent;")
                         break
 
