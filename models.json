@@ -1,11 +1,11 @@
 {
   "version": "1.0.0",
-  "last_updated": "2026-04-03",
+  "last_updated": "2026-04-04",
   "models": [
     {
       "name": "Tinyllama",
       "tag": "tinyllama",
-      "size_gb": 0.6,
+      "size_gb": 0.638,
       "min_ram_gb": 2,
       "description": "Compact 1.1B model. Great for testing and quick Q&A on low-end hardware.",
       "capabilities": ["chat"],
@@ -38,7 +38,7 @@
     {
       "name": "Gemma 3 4B",
       "tag": "gemma3:4b",
-      "size_gb": 3.0,
+      "size_gb": 3.3,
       "min_ram_gb": 6,
       "description": "Google's 4B multimodal model. Supports text and image inputs.",
       "capabilities": ["chat", "reasoning", "vision"],
@@ -49,7 +49,7 @@
     {
       "name": "Qwen 2.5 3B",
       "tag": "qwen2.5:3b",
-      "size_gb": 2.0,
+      "size_gb": 1.9,
       "min_ram_gb": 4,
       "description": "Alibaba's multilingual 3B model. Strong at coding and conversation.",
       "capabilities": ["chat", "coding"],
@@ -71,7 +71,7 @@
     {
       "name": "Qwen 3 4B",
       "tag": "qwen3:4b",
-      "size_gb": 2.6,
+      "size_gb": 2.5,
       "min_ram_gb": 6,
       "description": "Latest Qwen 4B model with hybrid thinking. Excellent for code and logic.",
       "capabilities": ["chat", "coding", "reasoning"],
@@ -93,7 +93,7 @@
     {
       "name": "Mistral 7B",
       "tag": "mistral",
-      "size_gb": 4.1,
+      "size_gb": 4.4,
       "min_ram_gb": 8,
       "description": "Fast, reliable 7B model. Excellent for everyday chat and general tasks.",
       "capabilities": ["chat"],
@@ -104,7 +104,7 @@
     {
       "name": "Llama 3.2 1B",
       "tag": "llama3.2:1b",
-      "size_gb": 0.7,
+      "size_gb": 1.3,
       "min_ram_gb": 2,
       "description": "Meta's ultra-light 1B model. Fast responses, good for basic tasks.",
       "capabilities": ["chat"],
@@ -126,7 +126,7 @@
     {
       "name": "Llama 3.1 8B",
       "tag": "llama3.1:8b",
-      "size_gb": 4.7,
+      "size_gb": 4.9,
       "min_ram_gb": 8,
       "description": "Meta's general-purpose 8B model. Strong at coding, chat, and reasoning.",
       "capabilities": ["chat", "coding", "reasoning"],
@@ -170,7 +170,7 @@
     {
       "name": "DeepSeek R1 8B",
       "tag": "deepseek-r1:8b",
-      "size_gb": 4.9,
+      "size_gb": 5.2,
       "min_ram_gb": 8,
       "description": "Latest 8B distilled reasoning model. Top-tier logic and analysis.",
       "capabilities": ["reasoning", "math", "coding"],
@@ -236,7 +236,7 @@
     {
       "name": "Nomic Embed Text",
       "tag": "nomic-embed-text",
-      "size_gb": 0.3,
+      "size_gb": 0.274,
       "min_ram_gb": 2,
       "description": "Text embedding model. Useful for semantic search and RAG applications.",
       "capabilities": ["embedding"],
@@ -247,7 +247,7 @@
     {
       "name": "Orca Mini 3B",
       "tag": "orca-mini:3b",
-      "size_gb": 1.9,
+      "size_gb": 2.0,
       "min_ram_gb": 4,
       "description": "Compact reasoning model trained on synthetic data. Good for instruction following.",
       "capabilities": ["chat", "reasoning"],

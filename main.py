@@ -257,7 +257,10 @@ class MainWindow(QMainWindow):
             self._shutdown_waiting_for_server_stop = None
             return
 
-        self._show_toast("Ollama server stopped safely", "success")
+        if getattr(self._ollama_manager, "_last_stop_forced", False):
+            self._show_toast("Ollama server stopped after force cleanup", "warning")
+        else:
+            self._show_toast("Ollama server stopped safely", "success")
 
     @Slot(str)
     def _on_page_changed(self, page_key: str):
@@ -617,8 +620,6 @@ class MainWindow(QMainWindow):
 
         # Stop anything still running
         self._monitor.stop()
-        if self._ollama_manager.is_running:
-            self._ollama_manager.stop_server()
 
         # Close shutdown dialog if it exists
         if hasattr(self, '_shutdown_dialog') and self._shutdown_dialog:

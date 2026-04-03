@@ -12,6 +12,7 @@ import zipfile
 import socket
 import time
 import requests
+import psutil
 from PySide6.QtCore import QObject, QProcess, QTimer, Signal, Slot, QProcessEnvironment
 
 from app import config
@@ -42,6 +43,10 @@ class OllamaManager(QObject):
         self._max_restarts = 3
         self._intentional_stop = False
         self._stop_in_progress = False
+        self._stop_started_at: float | None = None
+        self._stop_target_pids: set[int] = set()
+        self._stop_forced = False
+        self._last_stop_forced = False
         self._port = config.OLLAMA_DEFAULT_PORT
         self._downloading = False
 
@@ -231,6 +236,11 @@ class OllamaManager(QObject):
         self._process.errorOccurred.connect(self._on_process_error)
 
         self._intentional_stop = False
+        self._stop_in_progress = False
+        self._stop_started_at = None
+        self._stop_target_pids.clear()
+        self._stop_forced = False
+        self._last_stop_forced = False
         self._process.start()
 
         # Wait for server to become ready (non-blocking polling)
@@ -260,22 +270,86 @@ class OllamaManager(QObject):
 
     def stop_server(self):
         """Stop the Ollama server gracefully."""
+        if self._stop_in_progress:
+            return
+
         self._intentional_stop = True
         self._stop_in_progress = True
+        self._stop_forced = False
+        self._last_stop_forced = False
         self._health_timer.stop()
         self._ready_timer.stop()
 
-        if not self._process or self._process.state() != QProcess.Running:
+        self._stop_started_at = time.monotonic()
+        self._stop_target_pids = self._capture_process_tree_pids()
+
+        if not self._stop_target_pids:
+            if self._process and self._process.state() == QProcess.Running:
+                self._process.terminate()
+                QTimer.singleShot(250, self._check_stop_progress)
+                return
+
             self._finalize_stop("Ollama server stopped safely")
             return
 
-        self._process.terminate()
-        QTimer.singleShot(5000, self._force_kill_if_needed)
+        self._terminate_stop_targets(force=False)
+        QTimer.singleShot(250, self._check_stop_progress)
 
-    def _force_kill_if_needed(self):
-        """Force kill the server if graceful shutdown stalls."""
-        if self._stop_in_progress and self._process and self._process.state() == QProcess.Running:
-            self._process.kill()
+    def _capture_process_tree_pids(self) -> set[int]:
+        """Capture the parent Ollama PID and any current children."""
+        pids: set[int] = set()
+        if not self._process:
+            return pids
+
+        try:
+            parent = psutil.Process(int(self._process.processId()))
+            pids.add(parent.pid)
+            for child in parent.children(recursive=True):
+                pids.add(child.pid)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, TypeError, ValueError):
+            return pids
+
+        return pids
+
+    def _terminate_stop_targets(self, force: bool = False):
+        """Terminate or kill the tracked Ollama process tree."""
+        if not self._stop_target_pids:
+            return
+
+        for pid in list(self._stop_target_pids):
+            try:
+                proc = psutil.Process(pid)
+                if force:
+                    proc.kill()
+                else:
+                    proc.terminate()
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                self._stop_target_pids.discard(pid)
+
+    def _check_stop_progress(self):
+        """Poll shutdown progress and escalate if the tree is still alive."""
+        if not self._stop_in_progress:
+            return
+
+        alive_pids = {pid for pid in self._stop_target_pids if psutil.pid_exists(pid)}
+        if not alive_pids:
+            self._stop_target_pids.clear()
+            self._finalize_stop()
+            return
+
+        self._stop_target_pids = alive_pids
+
+        elapsed = time.monotonic() - self._stop_started_at if self._stop_started_at else 0.0
+        if elapsed >= 5.0 or self._stop_forced:
+            if not self._stop_forced:
+                self._stop_forced = True
+                self._last_stop_forced = True
+                self._log_info("Force stopping Ollama process tree after timeout")
+            self._terminate_stop_targets(force=True)
+        else:
+            self._terminate_stop_targets(force=False)
+
+        QTimer.singleShot(250, self._check_stop_progress)
 
     def _find_available_port(self) -> int:
         """Find an available port starting from default."""
@@ -303,7 +377,7 @@ class OllamaManager(QObject):
     def _on_process_finished(self, exit_code, exit_status):
         """Handle unexpected process exit — auto-restart."""
         if self._intentional_stop or self._stop_in_progress:
-            self._finalize_stop("Ollama server stopped safely")
+            QTimer.singleShot(0, self._check_stop_progress)
             return
 
         self._health_timer.stop()
@@ -363,12 +437,23 @@ class OllamaManager(QObject):
         self._ready_timer.stop()
         self._stop_in_progress = False
         self._intentional_stop = False
+        self._stop_started_at = None
+        self._stop_target_pids.clear()
+        self._stop_forced = False
 
         if self._process is not None:
             self._process.deleteLater()
             self._process = None
 
-        if message:
-            self._log_info(message)
+        final_message = message
+        if final_message is None:
+            final_message = (
+                "Ollama server stopped after force cleanup"
+                if self._last_stop_forced
+                else "Ollama server stopped safely"
+            )
+
+        if final_message:
+            self._log_info(final_message)
 
         self.server_stopped.emit()

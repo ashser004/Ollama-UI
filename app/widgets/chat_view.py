@@ -326,9 +326,9 @@ class ChatView(QWidget):
         input_layout.addWidget(self._input, 1)
 
         # Send button
-        self._send_btn = QPushButton("➤")
+        self._send_btn = QPushButton("Send")
         self._send_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        self._send_btn.setFixedSize(44, 44)
+        self._send_btn.setFixedSize(74, 44)
         self._send_btn.setStyleSheet(f"""
             QPushButton {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -336,7 +336,9 @@ class ChatView(QWidget):
                 color: {COLORS.text_on_accent};
                 border: none;
                 border-radius: 22px;
-                font-size: 18px;
+                font-size: 13px;
+                font-weight: 700;
+                padding: 0 18px;
             }}
             QPushButton:hover {{
                 background: {COLORS.accent_hover};
@@ -445,17 +447,31 @@ class ChatView(QWidget):
             name = m.get("name", "Unknown")
             self._model_combo.addItem(name)
 
-        if self._current_model:
-            idx = self._model_combo.findText(self._current_model)
-            if idx >= 0:
-                self._model_combo.setCurrentIndex(idx)
-
         self._model_combo.blockSignals(False)
-        self._update_input_capabilities()
+        self._sync_current_model_selection()
 
         # Show/hide empty state overlay
         has_models = self._model_combo.count() > 0
         self._empty_overlay.setVisible(not has_models)
+
+    def _sync_current_model_selection(self, preferred_model: str | None = None):
+        """Keep the combo box and active model state aligned."""
+        if self._model_combo.count() == 0:
+            self._current_model = ""
+            self._update_input_capabilities()
+            return
+
+        target_model = preferred_model or self._current_model
+        index = self._model_combo.findText(target_model) if target_model else -1
+        if index < 0:
+            index = 0
+
+        self._model_combo.blockSignals(True)
+        self._model_combo.setCurrentIndex(index)
+        self._model_combo.blockSignals(False)
+
+        self._current_model = self._model_combo.currentText()
+        self._update_input_capabilities()
 
     def resizeEvent(self, event):
         """Keep empty overlay sized to fill the widget."""
@@ -471,11 +487,7 @@ class ChatView(QWidget):
             self._is_agentic = bool(conv["is_agentic"])
             self._agentic_btn.setChecked(self._is_agentic)
 
-            # Set model in combo
-            idx = self._model_combo.findText(self._current_model)
-            if idx >= 0:
-                self._model_combo.setCurrentIndex(idx)
-
+        self._sync_current_model_selection(self._current_model)
         self._load_messages()
         self._refresh_history()
 
@@ -483,14 +495,10 @@ class ChatView(QWidget):
         """Start a fresh conversation."""
         if model:
             self._current_model = model
-            idx = self._model_combo.findText(model)
-            if idx >= 0:
-                self._model_combo.setCurrentIndex(idx)
-        elif self._model_combo.count() > 0:
-            self._current_model = self._model_combo.currentText()
 
         self._conversation_id = None
         self._clear_messages()
+        self._sync_current_model_selection(model)
         self._refresh_history()
 
     def _new_chat(self):
@@ -526,8 +534,11 @@ class ChatView(QWidget):
         if not text or self._is_streaming:
             return
 
-        if not self._current_model or self._model_combo.count() == 0:
+        if self._model_combo.count() == 0:
             return
+
+        if not self._current_model or self._model_combo.findText(self._current_model) < 0:
+            self._sync_current_model_selection(self._current_model or None)
 
         # Create conversation if needed
         if self._conversation_id is None:
