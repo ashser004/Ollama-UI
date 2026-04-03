@@ -329,6 +329,15 @@ class ShutdownDialog(QWidget):
         )
         layout.addWidget(subtitle)
 
+        self._phase_hint_label = QLabel("")
+        self._phase_hint_label.setWordWrap(True)
+        self._phase_hint_label.setAlignment(Qt.AlignCenter)
+        self._phase_hint_label.setVisible(False)
+        self._phase_hint_label.setStyleSheet(
+            f"color: {COLORS.accent_secondary}; font-size: 11px; background: transparent;"
+        )
+        layout.addWidget(self._phase_hint_label)
+
         layout.addSpacing(8)
 
         for task_name in tasks:
@@ -425,6 +434,15 @@ class ShutdownDialog(QWidget):
                     f"font-weight: 700; background: transparent;"
                 )
                 QTimer.singleShot(600, self.shutdown_complete.emit)
+
+    def set_phase_hint(self, text: str):
+        """Show a small bounded hint about the current shutdown phase."""
+        if text:
+            self._phase_hint_label.setText(text)
+            self._phase_hint_label.setVisible(True)
+        else:
+            self._phase_hint_label.clear()
+            self._phase_hint_label.setVisible(False)
 
     def show_centered(self, parent_widget=None):
         if parent_widget:

@@ -109,22 +109,24 @@ class ModelCard(QWidget):
         self._progress.setRange(0, 100)
         progress_row.addWidget(self._progress, 1)
 
-        self._pause_btn = QPushButton("⏸")
-        self._pause_btn.setFixedSize(26, 26)
+        self._pause_btn = QPushButton("Pause")
+        self._pause_btn.setFixedSize(58, 28)
         self._pause_btn.setCursor(Qt.PointingHandCursor)
         self._pause_btn.setToolTip("Pause download")
         self._pause_btn.setStyleSheet(f"""
             QPushButton {{
-                background: {COLORS.bg_hover};
-                color: {COLORS.text_secondary};
+                background: {COLORS.bg_elevated};
+                color: {COLORS.text_primary};
                 border: 1px solid {COLORS.border_default};
-                border-radius: 13px;
+                border-radius: 8px;
                 font-size: 11px;
+                font-weight: 600;
+                padding: 0 10px;
             }}
             QPushButton:hover {{
-                background: {COLORS.warning}30;
+                background: {COLORS.bg_hover};
                 color: {COLORS.warning};
-                border-color: {COLORS.warning}44;
+                border-color: {COLORS.warning}55;
             }}
         """)
         self._pause_btn.clicked.connect(self._on_pause_click)

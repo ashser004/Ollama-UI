@@ -560,12 +560,24 @@ class MainWindow(QMainWindow):
         self._shutdown_step = 0
         self._do_next_shutdown_step()
 
+    def _shutdown_hint_for_task(self, task: str) -> str:
+        """Return a bounded, honest hint for the current shutdown phase."""
+        task_lower = task.lower()
+        if "downloads" in task_lower:
+            return "Pausing active downloads and saving state."
+        if "installation" in task_lower:
+            return "Cleaning up interrupted install files."
+        if "server" in task_lower:
+            return "Ollama server stop target: up to 5 seconds."
+        return "This step is running in the background."
+
     def _do_next_shutdown_step(self):
         """Process the next shutdown step."""
         if self._shutdown_step >= len(self._shutdown_tasks):
             return
 
         task = self._shutdown_tasks[self._shutdown_step]
+        self._shutdown_dialog.set_phase_hint(self._shutdown_hint_for_task(task))
         self._shutdown_dialog.mark_task_active(self._shutdown_step)
 
         if "downloads" in task.lower():
