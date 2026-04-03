@@ -21,6 +21,7 @@ class ToastNotification(QWidget):
         super().__init__(parent)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setFixedWidth(400)
 
         # Colors by type
@@ -86,23 +87,39 @@ class ToastNotification(QWidget):
         layout.addWidget(accent_badge)
 
         text_column = QWidget()
+        text_column.setObjectName("toastTextColumn")
+        text_column.setAutoFillBackground(False)
+        text_column.setAttribute(Qt.WA_StyledBackground, False)
+        text_column.setStyleSheet("background-color: transparent; border: none;")
         text_layout = QVBoxLayout(text_column)
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(2)
 
         title_label = QLabel(title)
+        title_label.setObjectName("toastTitle")
         title_label.setStyleSheet(f"""
-            color: {color};
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0.4px;
-            background: transparent;
+            QLabel#toastTitle {{
+                color: {color};
+                font-size: 12px;
+                font-weight: 800;
+                letter-spacing: 0.4px;
+                background-color: transparent;
+                border: none;
+            }}
         """)
         text_layout.addWidget(title_label)
 
         msg_label = QLabel(message)
+        msg_label.setObjectName("toastMessage")
         msg_label.setWordWrap(True)
-        msg_label.setStyleSheet(f"color: {COLORS.text_primary}; font-size: 13px; background: transparent;")
+        msg_label.setStyleSheet(f"""
+            QLabel#toastMessage {{
+                color: {COLORS.text_primary};
+                font-size: 13px;
+                background-color: transparent;
+                border: none;
+            }}
+        """)
         text_layout.addWidget(msg_label)
         layout.addWidget(text_column, 1)
 
@@ -139,14 +156,19 @@ class ToastNotification(QWidget):
 
     def show_at(self, parent_widget: QWidget):
         """Show toast horizontally centered, 20% up from bottom of parent."""
-        if parent_widget:
-            self.setParent(parent_widget)
-            
-            self.adjustSize()  # Ensure widget computes its height
-            
-            x = (parent_widget.width() - self.width()) // 2
-            y = int(parent_widget.height() * 0.8)
-            self.move(x, y)
+        if not parent_widget:
+            return
+
+        if not parent_widget.isVisible() or parent_widget.isMinimized():
+            return
+
+        self.setParent(parent_widget)
+
+        self.adjustSize()  # Ensure widget computes its height
+
+        x = (parent_widget.width() - self.width()) // 2
+        y = int(parent_widget.height() * 0.8)
+        self.move(x, y)
         self.raise_()
         self.show()
 
