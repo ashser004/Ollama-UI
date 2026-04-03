@@ -3,9 +3,10 @@ home_page.py — Main dashboard after setup.
 """
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                                QPushButton, QFrame, QGridLayout)
+                                QPushButton, QFrame, QGridLayout,
+                                QGraphicsDropShadowEffect, QSizePolicy)
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QFont, QCursor
+from PySide6.QtGui import QFont, QCursor, QColor
 
 from app.theme import COLORS, accent_button_style, card_style
 from app.ollama.api import OllamaAPI
@@ -18,38 +19,54 @@ class StatCard(QWidget):
 
     def __init__(self, accent_color: str, title: str, value: str, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(100)
-        self.setStyleSheet(f"""
-            QWidget#statCard {{
-                background-color: {COLORS.bg_surface};
+        self.setMinimumHeight(112)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(26)
+        shadow.setOffset(0, 8)
+        shadow.setColor(QColor(8, 15, 30, 160))
+        self.setGraphicsEffect(shadow)
+
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        self._card = QFrame()
+        self._card.setObjectName("statCardFrame")
+        self._card.setStyleSheet(f"""
+            QFrame#statCardFrame {{
+                background-color: {COLORS.bg_elevated};
                 border: 1px solid {COLORS.border_default};
-                border-radius: 14px;
+                border-radius: 16px;
             }}
-            QWidget#statCard:hover {{
-                border: 1px solid {accent_color}80;
+            QFrame#statCardFrame:hover {{
+                border: 1px solid {accent_color};
+                background-color: {COLORS.bg_hover};
             }}
         """)
-        self.setObjectName("statCard")
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 14, 18, 14)
-        layout.setSpacing(6)
+        card_layout = QVBoxLayout(self._card)
+        card_layout.setContentsMargins(16, 14, 16, 14)
+        card_layout.setSpacing(8)
 
-        # Colored accent dot
-        dot = QLabel("●")
-        dot.setStyleSheet(f"color: {accent_color}; font-size: 10px; background: transparent;")
-        layout.addWidget(dot)
+        accent_bar = QFrame()
+        accent_bar.setFixedHeight(3)
+        accent_bar.setStyleSheet(f"background-color: {accent_color}; border-radius: 1px;")
+        card_layout.addWidget(accent_bar)
 
         self._value = QLabel(value)
         self._value.setStyleSheet(f"""
-            font-size: 22px; font-weight: 800;
+            font-size: 24px; font-weight: 900;
             color: {accent_color}; background: transparent;
         """)
-        layout.addWidget(self._value)
+        card_layout.addWidget(self._value)
 
         title_label = QLabel(title)
-        title_label.setStyleSheet(f"color: {COLORS.text_muted}; font-size: 11px; background: transparent;")
-        layout.addWidget(title_label)
+        title_label.setStyleSheet(f"color: {COLORS.text_secondary}; font-size: 11px; background: transparent;")
+        card_layout.addWidget(title_label)
+
+        card_layout.addStretch()
+        outer_layout.addWidget(self._card)
 
     def set_value(self, value: str):
         self._value.setText(value)
@@ -91,6 +108,10 @@ class HomePage(QWidget):
         # Stats row
         stats_grid = QGridLayout()
         stats_grid.setSpacing(14)
+        stats_grid.setColumnStretch(0, 1)
+        stats_grid.setColumnStretch(1, 1)
+        stats_grid.setColumnStretch(2, 1)
+        stats_grid.setColumnStretch(3, 1)
 
         self._models_stat = StatCard(COLORS.accent_primary, "Models Installed", "0")
         stats_grid.addWidget(self._models_stat, 0, 0)
