@@ -67,6 +67,7 @@ class MainWindow(QMainWindow):
         # Shutdown state
         self._shutdown_in_progress = False
         self._ready_to_close = False
+        self._shutdown_waiting_for_server_stop: int | None = None
 
         # ─── Central widget ───────────────────────
         central = QWidget()
@@ -172,9 +173,7 @@ class MainWindow(QMainWindow):
         self._monitor.disk_warning.connect(lambda msg: self._show_toast(msg, "warning"))
         self._monitor.ram_warning.connect(lambda msg: self._show_toast(msg, "warning"))
         self._ollama_manager.server_started.connect(self._on_server_started)
-        self._ollama_manager.server_stopped.connect(
-            lambda: self._status_bar.update_ollama_status(False)
-        )
+        self._ollama_manager.server_stopped.connect(self._on_server_stopped)
         self._ollama_manager.server_error.connect(
             lambda msg: self._show_toast(msg, "error")
         )
@@ -244,6 +243,21 @@ class MainWindow(QMainWindow):
         current = self._pages.currentWidget()
         if hasattr(current, 'refresh'):
             current.refresh()
+
+    @Slot()
+    def _on_server_stopped(self):
+        """Handle a safe Ollama server shutdown."""
+        self._status_bar.update_ollama_status(False)
+        self._api.base_url = self._ollama_manager.base_url
+
+        if self._shutdown_in_progress and self._shutdown_waiting_for_server_stop is not None:
+            index = self._shutdown_waiting_for_server_stop
+            self._shutdown_dialog.mark_task_done(index)
+            self._shutdown_step = index + 1
+            self._shutdown_waiting_for_server_stop = None
+            return
+
+        self._show_toast("Ollama server stopped safely", "success")
 
     @Slot(str)
     def _on_page_changed(self, page_key: str):
@@ -419,6 +433,8 @@ class MainWindow(QMainWindow):
 
     def _show_toast(self, message: str, toast_type: str = "info"):
         """Show a toast notification."""
+        if not self.isVisible() or self.isMinimized():
+            return
         toast = ToastNotification(message, toast_type, parent=self)
         toast.show_at(self)
 
@@ -533,7 +549,7 @@ class MainWindow(QMainWindow):
             self._shutdown_dialog.show_centered(self)
 
             # Execute shutdown steps
-            self._execute_shutdown(tasks)
+            QTimer.singleShot(0, lambda t=tasks: self._execute_shutdown(t))
         else:
             # No tracked tasks — do a quick direct shutdown
             self._final_close()
@@ -578,10 +594,9 @@ class MainWindow(QMainWindow):
 
         elif "server" in task.lower():
             self._monitor.stop()
+            self._shutdown_waiting_for_server_stop = self._shutdown_step
             self._ollama_manager.stop_server()
-            self._shutdown_dialog.mark_task_done(self._shutdown_step)
-            self._shutdown_step += 1
-            QTimer.singleShot(300, self._do_next_shutdown_step)
+            return
 
     def _final_close(self):
         """Final cleanup and close the application."""
@@ -598,6 +613,8 @@ class MainWindow(QMainWindow):
             self._shutdown_dialog.close()
             self._shutdown_dialog.deleteLater()
             self._shutdown_dialog = None
+
+        self._shutdown_waiting_for_server_stop = None
 
         # Set flag so closeEvent accepts, then close the window
         self._ready_to_close = True

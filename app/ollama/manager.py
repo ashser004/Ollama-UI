@@ -41,6 +41,7 @@ class OllamaManager(QObject):
         self._restart_count = 0
         self._max_restarts = 3
         self._intentional_stop = False
+        self._stop_in_progress = False
         self._port = config.OLLAMA_DEFAULT_PORT
         self._downloading = False
 
@@ -190,6 +191,9 @@ class OllamaManager(QObject):
 
     def start_server(self):
         """Start the Ollama server."""
+        if self._stop_in_progress:
+            return
+
         if self.is_running:
             self.server_started.emit()
             return
@@ -241,6 +245,7 @@ class OllamaManager(QObject):
             if resp.status_code == 200:
                 self._ready_timer.stop()
                 self._restart_count = 0
+                self._log_info("Ollama server started safely")
                 self.server_started.emit()
                 self._health_timer.start(5000)
                 return
@@ -256,15 +261,21 @@ class OllamaManager(QObject):
     def stop_server(self):
         """Stop the Ollama server gracefully."""
         self._intentional_stop = True
+        self._stop_in_progress = True
         self._health_timer.stop()
         self._ready_timer.stop()
-        if self._process and self._process.state() == QProcess.Running:
-            self._process.terminate()
-            if not self._process.waitForFinished(5000):
-                self._process.kill()
-                self._process.waitForFinished(3000)
-        self._process = None
-        self.server_stopped.emit()
+
+        if not self._process or self._process.state() != QProcess.Running:
+            self._finalize_stop("Ollama server stopped safely")
+            return
+
+        self._process.terminate()
+        QTimer.singleShot(5000, self._force_kill_if_needed)
+
+    def _force_kill_if_needed(self):
+        """Force kill the server if graceful shutdown stalls."""
+        if self._stop_in_progress and self._process and self._process.state() == QProcess.Running:
+            self._process.kill()
 
     def _find_available_port(self) -> int:
         """Find an available port starting from default."""
@@ -291,7 +302,8 @@ class OllamaManager(QObject):
     @Slot(int, QProcess.ExitStatus)
     def _on_process_finished(self, exit_code, exit_status):
         """Handle unexpected process exit — auto-restart."""
-        if self._intentional_stop:
+        if self._intentional_stop or self._stop_in_progress:
+            self._finalize_stop("Ollama server stopped safely")
             return
 
         self._health_timer.stop()
@@ -311,6 +323,9 @@ class OllamaManager(QObject):
     @Slot(QProcess.ProcessError)
     def _on_process_error(self, error):
         """Handle process errors."""
+        if self._intentional_stop or self._stop_in_progress:
+            return
+
         error_map = {
             QProcess.FailedToStart: "Failed to start Ollama",
             QProcess.Crashed: "Ollama crashed",
@@ -332,3 +347,28 @@ class OllamaManager(QObject):
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
             with open(log_path, "a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {message}\n")
+
+    def _log_info(self, message: str):
+        """Append a non-error lifecycle message to the log file."""
+        log_path = config.get_error_log_path()
+        if log_path:
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(f"[{timestamp}] {message}\n")
+
+    def _finalize_stop(self, message: str | None = None):
+        """Reset stop state and emit the stopped signal once the process is gone."""
+        self._health_timer.stop()
+        self._ready_timer.stop()
+        self._stop_in_progress = False
+        self._intentional_stop = False
+
+        if self._process is not None:
+            self._process.deleteLater()
+            self._process = None
+
+        if message:
+            self._log_info(message)
+
+        self.server_stopped.emit()

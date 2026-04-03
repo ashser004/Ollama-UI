@@ -298,8 +298,10 @@ class ShutdownDialog(QWidget):
 
         self._status_icons: list[QLabel] = []
         self._task_labels: list[QLabel] = []
+        self._task_base_texts = [task.rstrip(".") for task in tasks]
         self._completed = 0
         self._total = len(tasks)
+        self._active_task_index: int | None = None
 
         container = QWidget()
         container.setStyleSheet(f"""
@@ -364,35 +366,47 @@ class ShutdownDialog(QWidget):
 
         self._dot_idx = 0
         self._dot_timer = QTimer(self)
-        self._dot_timer.timeout.connect(self._animate_dots)
+        self._dot_timer.timeout.connect(self._animate_status)
         self._dot_timer.start(350)
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(container)
 
-    def _animate_dots(self):
+    def _animate_status(self):
         self._dot_idx = (self._dot_idx + 1) % 3
         dots = ""
         for i in range(3):
             dots += "●" if i == self._dot_idx else "○"
         self._dots_label.setText(dots)
 
+        if self._active_task_index is not None and 0 <= self._active_task_index < self._total:
+            base_text = self._task_base_texts[self._active_task_index]
+            active_dots = 3 - self._dot_idx
+            self._task_labels[self._active_task_index].setText(f"{base_text}{'.' * active_dots}")
+
     def mark_task_active(self, index: int):
         """Mark a task as currently being stopped."""
         if 0 <= index < self._total:
+            self._active_task_index = index
+            base_text = self._task_base_texts[index]
             self._status_icons[index].setText("⏳")
             self._status_icons[index].setStyleSheet(
                 f"font-size: 14px; color: {COLORS.warning}; background: transparent;"
             )
             self._task_labels[index].setStyleSheet(
-                f"color: {COLORS.text_primary}; font-size: 13px; "
-                f"font-weight: 600; background: transparent;"
+                f"color: {COLORS.accent_secondary}; font-size: 13px; "
+                f"font-weight: 700; background: transparent;"
             )
+            self._task_labels[index].setText(f"{base_text}...")
+            if not self._dot_timer.isActive():
+                self._dot_timer.start(350)
 
     def mark_task_done(self, index: int):
         """Mark a task as completed."""
         if 0 <= index < self._total:
+            if self._active_task_index == index:
+                self._active_task_index = None
             self._status_icons[index].setText("✓")
             self._status_icons[index].setStyleSheet(
                 f"font-size: 14px; color: {COLORS.success}; background: transparent;"
@@ -400,6 +414,7 @@ class ShutdownDialog(QWidget):
             self._task_labels[index].setStyleSheet(
                 f"color: {COLORS.success}; font-size: 13px; background: transparent;"
             )
+            self._task_labels[index].setText(self._task_base_texts[index])
             self._completed += 1
 
             if self._completed >= self._total:
