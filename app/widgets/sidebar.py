@@ -2,12 +2,105 @@
 sidebar.py — Navigation sidebar with collapsible icons.
 """
 
+from pathlib import Path
+
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton,
-                                QLabel, QSizePolicy, QSpacerItem)
+                                QLabel, QSizePolicy, QSpacerItem,
+                                QStackedLayout, QGraphicsOpacityEffect)
 from PySide6.QtCore import Qt, Signal, QSize, QPropertyAnimation, QEasingCurve
-from PySide6.QtGui import QFont, QCursor
+from PySide6.QtGui import QFont, QCursor, QPixmap
 
 from app.theme import COLORS
+
+
+class SidebarLogo(QWidget):
+    """Animated app logo that swaps between expanded and collapsed assets."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._expanded = True
+        self._label_path = Path(__file__).resolve().parents[1] / "icon" / "label-icon.png"
+        self._collapsed_path = Path(__file__).resolve().parents[1] / "icon" / "icon-ui.png"
+
+        self._stack = QStackedLayout(self)
+        self._stack.setContentsMargins(0, 0, 0, 0)
+        self._stack.setSpacing(0)
+        self._stack.setStackingMode(QStackedLayout.StackAll)
+
+        self._label_logo = QLabel()
+        self._label_logo.setAlignment(Qt.AlignCenter)
+        self._label_logo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self._label_logo.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+        self._collapsed_logo = QLabel()
+        self._collapsed_logo.setAlignment(Qt.AlignCenter)
+        self._collapsed_logo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self._collapsed_logo.setAttribute(Qt.WA_TransparentForMouseEvents)
+
+        self._label_effect = QGraphicsOpacityEffect(self._label_logo)
+        self._label_logo.setGraphicsEffect(self._label_effect)
+
+        self._collapsed_effect = QGraphicsOpacityEffect(self._collapsed_logo)
+        self._collapsed_logo.setGraphicsEffect(self._collapsed_effect)
+
+        self._label_effect.setOpacity(1.0)
+        self._collapsed_effect.setOpacity(0.0)
+
+        self._label_anim = None
+        self._collapsed_anim = None
+
+        self._stack.addWidget(self._label_logo)
+        self._stack.addWidget(self._collapsed_logo)
+        self._update_pixmaps()
+
+    def set_expanded(self, expanded: bool):
+        if self._expanded == expanded:
+            return
+
+        self._expanded = expanded
+        self._update_pixmaps()
+        self._animate_swap()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_pixmaps()
+
+    def _update_pixmaps(self):
+        size = self.size()
+        if size.width() <= 0 or size.height() <= 0:
+            return
+
+        for label, path in ((self._label_logo, self._label_path), (self._collapsed_logo, self._collapsed_path)):
+            pixmap = QPixmap(str(path))
+            if not pixmap.isNull():
+                label.setPixmap(
+                    pixmap.scaled(
+                        size,
+                        Qt.IgnoreAspectRatio,
+                        Qt.SmoothTransformation,
+                    )
+                )
+
+    def _animate_swap(self):
+        self._label_anim = QPropertyAnimation(self._label_effect, b"opacity", self)
+        self._label_anim.setDuration(200)
+        self._label_anim.setEasingCurve(QEasingCurve.InOutCubic)
+        self._label_anim.setStartValue(self._label_effect.opacity())
+
+        self._collapsed_anim = QPropertyAnimation(self._collapsed_effect, b"opacity", self)
+        self._collapsed_anim.setDuration(200)
+        self._collapsed_anim.setEasingCurve(QEasingCurve.InOutCubic)
+        self._collapsed_anim.setStartValue(self._collapsed_effect.opacity())
+
+        if self._expanded:
+            self._label_anim.setEndValue(1.0)
+            self._collapsed_anim.setEndValue(0.0)
+        else:
+            self._label_anim.setEndValue(0.0)
+            self._collapsed_anim.setEndValue(1.0)
+
+        self._label_anim.start()
+        self._collapsed_anim.start()
 
 
 class SidebarButton(QPushButton):
@@ -118,18 +211,13 @@ class Sidebar(QWidget):
         logo_container.setFixedHeight(64)
         logo_container.setStyleSheet("background: transparent;")
         logo_layout = QVBoxLayout(logo_container)
-        logo_layout.setContentsMargins(20, 16, 20, 8)
+        logo_layout.setContentsMargins(0, 0, 0, 0)
+        logo_layout.setAlignment(Qt.AlignCenter)
 
-        self._title_label = QLabel()
-        self._title_label.setFixedSize(36, 36)
-        self._title_label.setStyleSheet("""
-            QLabel {
-                border-image: url(app/icon/icon-ui.png) 0 0 0 0 stretch stretch;
-                border-radius: 5px;
-                background: transparent;
-            }
-        """)
-        logo_layout.addWidget(self._title_label)
+        self._logo_widget = SidebarLogo()
+        self._logo_widget.setFixedHeight(64)
+        self._logo_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        logo_layout.addWidget(self._logo_widget)
 
         layout.addWidget(logo_container)
 
@@ -209,6 +297,8 @@ class Sidebar(QWidget):
         for btn in self._buttons.values():
             btn.set_expanded(self._expanded)
 
+        self._logo_widget.set_expanded(self._expanded)
+
         if self._expanded:
             self._collapse_btn.setText("◀  Collapse")
             pad = "2px 12px"
@@ -230,8 +320,6 @@ class Sidebar(QWidget):
                 color: {COLORS.text_primary};
             }}
         """)
-
-        self._title_label.setVisible(self._expanded)
 
     def set_page(self, page_key: str):
         """Programmatically set the active page."""
