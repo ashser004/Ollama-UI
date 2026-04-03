@@ -64,6 +64,7 @@ class MainWindow(QMainWindow):
 
         # Shutdown state
         self._shutdown_in_progress = False
+        self._ready_to_close = False
 
         # ─── Central widget ───────────────────────
         central = QWidget()
@@ -459,11 +460,18 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Clean shutdown — save state, stop processes with UI feedback."""
+        # Phase 3: Shutdown completed, actually close the window
+        if self._ready_to_close:
+            event.accept()
+            super().closeEvent(event)
+            return
+
+        # Phase 2: Shutdown in progress, ignore repeated close clicks
         if self._shutdown_in_progress:
             event.ignore()
             return
 
-        tasks = self._has_running_processes()
+        # Phase 1: Initial close request
         has_active_downloads = self._is_busy()
 
         if has_active_downloads:
@@ -496,13 +504,11 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
 
-        # Ignore the event — we'll close manually after shutdown completes
+        # Begin shutdown sequence
         event.ignore()
         self._shutdown_in_progress = True
 
-        # Always add the server task if running
-        if not tasks and self._ollama_manager.is_running:
-            tasks = ["Stopping Ollama server..."]
+        tasks = self._has_running_processes()
 
         if tasks:
             # Show the shutdown progress dialog
@@ -513,7 +519,7 @@ class MainWindow(QMainWindow):
             # Execute shutdown steps
             self._execute_shutdown(tasks)
         else:
-            # Nothing to stop — close immediately
+            # No tracked tasks — do a quick direct shutdown
             self._final_close()
 
     def _execute_shutdown(self, tasks: list[str]):
@@ -574,9 +580,12 @@ class MainWindow(QMainWindow):
         # Close shutdown dialog if it exists
         if hasattr(self, '_shutdown_dialog') and self._shutdown_dialog:
             self._shutdown_dialog.close()
+            self._shutdown_dialog.deleteLater()
+            self._shutdown_dialog = None
 
-        # Force quit
-        QApplication.instance().quit()
+        # Set flag so closeEvent accepts, then close the window
+        self._ready_to_close = True
+        self.close()  # triggers closeEvent → accepted → window closes → app exits
 
 
 def main():
