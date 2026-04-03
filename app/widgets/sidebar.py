@@ -230,11 +230,21 @@ class Sidebar(QWidget):
         layout.addSpacing(8)
 
         # Navigation buttons
-        for icon, label, key in self.NAV_ITEMS:
+        for index, (icon, label, key) in enumerate(self.NAV_ITEMS):
             btn = SidebarButton(icon, label)
             btn.clicked.connect(lambda checked, k=key: self._on_nav_click(k))
             self._buttons[key] = btn
             layout.addWidget(btn)
+
+            if index < len(self.NAV_ITEMS) - 1:
+                nav_sep = QWidget()
+                nav_sep.setFixedHeight(1)
+                nav_sep.setStyleSheet("""
+                    QWidget {
+                        background-color: rgba(56, 189, 248, 90);
+                    }
+                """)
+                layout.addWidget(nav_sep)
 
         layout.addStretch()
 

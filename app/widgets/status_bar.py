@@ -65,8 +65,13 @@ class StatusBar(QWidget):
 
     def _add_separator(self, layout):
         sep = QFrame()
-        sep.setFixedSize(1, 16)
-        sep.setStyleSheet(f"background-color: {COLORS.border_default};")
+        sep.setFixedSize(2, 14)
+        sep.setStyleSheet("""
+            QFrame {
+                background-color: rgba(56, 189, 248, 120);
+                border-radius: 1px;
+            }
+        """)
         layout.addWidget(sep)
 
     @Slot(dict)
