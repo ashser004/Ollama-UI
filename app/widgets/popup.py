@@ -20,6 +20,7 @@ class ToastNotification(QWidget):
                  duration_ms: int = 4000, parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
         self.setFixedWidth(400)
 
         # Colors by type
@@ -40,54 +41,74 @@ class ToastNotification(QWidget):
         }
         icon = type_icons.get(toast_type, "i")
 
+        # Human-readable title by type
+        type_titles = {
+            "info": "Info",
+            "success": "Success",
+            "warning": "Warning",
+            "error": "Error",
+        }
+        title = type_titles.get(toast_type, "Info")
+
         # Container
-        container = QWidget()
-        container.setStyleSheet(f"""
-            QWidget {{
+        shadow_host = QWidget()
+        shadow_host.setObjectName("toastCard")
+        shadow_host.setStyleSheet(f"""
+            QWidget#toastCard {{
                 background-color: {COLORS.bg_elevated};
-                border: 1px solid {color}44;
-                border-left: 4px solid {color};
-                border-radius: 10px;
-                padding: 12px 16px;
+                border: 1px solid {COLORS.border_default};
+                border-radius: 16px;
             }}
         """)
 
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(12, 10, 12, 10)
+        layout = QHBoxLayout(shadow_host)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(12)
+
+        accent_badge = QWidget()
+        accent_badge.setObjectName("toastBadge")
+        accent_badge.setFixedSize(40, 40)
+        accent_badge.setStyleSheet(f"""
+            QWidget#toastBadge {{
+                background-color: {color}22;
+                border: 1px solid {color}66;
+                border-radius: 20px;
+            }}
+        """)
+        badge_layout = QVBoxLayout(accent_badge)
+        badge_layout.setContentsMargins(0, 0, 0, 0)
+        badge_layout.setAlignment(Qt.AlignCenter)
 
         icon_label = QLabel(icon)
-        icon_label.setStyleSheet(f"font-size: 16px; font-weight: 800; color: {color}; background: transparent;")
-        icon_label.setFixedWidth(24)
+        icon_label.setStyleSheet(f"font-size: 16px; font-weight: 900; color: {color}; background: transparent;")
         icon_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(icon_label)
+        badge_layout.addWidget(icon_label)
+        layout.addWidget(accent_badge)
+
+        text_column = QWidget()
+        text_layout = QVBoxLayout(text_column)
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(2)
+
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"""
+            color: {color};
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            background: transparent;
+        """)
+        text_layout.addWidget(title_label)
 
         msg_label = QLabel(message)
         msg_label.setWordWrap(True)
         msg_label.setStyleSheet(f"color: {COLORS.text_primary}; font-size: 13px; background: transparent;")
-        layout.addWidget(msg_label, 1)
-
-        close_btn = QPushButton("✕")
-        close_btn.setFixedSize(24, 24)
-        close_btn.setCursor(Qt.PointingHandCursor)
-        close_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                color: {COLORS.text_muted};
-                border: none;
-                font-size: 14px;
-                border-radius: 12px;
-            }}
-            QPushButton:hover {{
-                background: {COLORS.bg_hover};
-                color: {COLORS.text_primary};
-            }}
-        """)
-        close_btn.clicked.connect(self._fade_out)
-        layout.addWidget(close_btn)
+        text_layout.addWidget(msg_label)
+        layout.addWidget(text_column, 1)
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(container)
+        main_layout.addWidget(shadow_host)
 
         # Opacity effect for fade animation
         self._opacity = QGraphicsOpacityEffect(self)
@@ -119,8 +140,7 @@ class ToastNotification(QWidget):
     def show_at(self, parent_widget: QWidget):
         """Show toast horizontally centered, 20% up from bottom of parent."""
         if parent_widget:
-            if self.parent() is None:
-                self.setParent(parent_widget)
+            self.setParent(parent_widget)
             
             self.adjustSize()  # Ensure widget computes its height
             
