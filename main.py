@@ -89,6 +89,16 @@ class MainWindow(QMainWindow):
         self._sidebar.setVisible(False)  # hidden during setup
         content_layout.addWidget(self._sidebar)
 
+        # Visible separation line between navigation and main content
+        self._sidebar_separator = QWidget()
+        self._sidebar_separator.setFixedWidth(2)
+        self._sidebar_separator.setStyleSheet("""
+            QWidget {
+                background-color: rgba(56, 189, 248, 100);
+            }
+        """)
+        content_layout.addWidget(self._sidebar_separator)
+
         # Page stack
         self._pages = QStackedWidget()
         content_layout.addWidget(self._pages, 1)
