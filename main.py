@@ -6,12 +6,13 @@ coordinates all major components.
 """
 
 import sys
+import os
 import atexit
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget,
                                 QHBoxLayout, QVBoxLayout, QStackedWidget,
-                                QMessageBox)
+                                QMessageBox, QSplashScreen)
 from PySide6.QtCore import Qt, Slot, QTimer
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPixmap
 
 from app import config
 from app import database as db
@@ -46,6 +47,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(config.APP_NAME)
         self.resize(1200, 800)
         self.setMinimumSize(900, 600)
+        self._startup_started = False
 
         # ─── Core services ────────────────────────
         self._ollama_manager = OllamaManager(self)
@@ -170,7 +172,11 @@ class MainWindow(QMainWindow):
             self._status_bar.update_ollama_status
         )
 
-        # ─── Initialize ──────────────────────────
+    def begin_startup(self):
+        """Run the initial page selection and startup sequence once."""
+        if self._startup_started:
+            return
+        self._startup_started = True
         self._decide_initial_page()
 
     def _decide_initial_page(self):
@@ -209,7 +215,7 @@ class MainWindow(QMainWindow):
 
         # Navigate to home
         self._pages.setCurrentWidget(self._home_page)
-        self._home_page.refresh()
+        # Home refresh happens when the Ollama server reports ready.
 
     @Slot()
     def _on_setup_complete(self):
@@ -593,8 +599,39 @@ def main():
     app.setStyle("Fusion")
     app.setStyleSheet(get_stylesheet())
 
+    splash_path = os.path.join(config.get_project_root(), "app", "icon", "splash-screen.png")
+    splash_pixmap = QPixmap(splash_path)
+    if not splash_pixmap.isNull() and app.primaryScreen():
+        screen_size = app.primaryScreen().availableGeometry().size()
+        target_width = min(splash_pixmap.width(), int(screen_size.width() * 0.8))
+        target_height = min(splash_pixmap.height(), int(screen_size.height() * 0.8))
+        splash_pixmap = splash_pixmap.scaled(
+            target_width,
+            target_height,
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation,
+        )
+
+    splash = QSplashScreen(splash_pixmap, Qt.WindowStaysOnTopHint)
+    splash.setWindowFlags(Qt.SplashScreen | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+    splash.show()
+
+    if app.primaryScreen():
+        screen_geometry = app.primaryScreen().availableGeometry()
+        splash.move(screen_geometry.center() - splash.rect().center())
+
+    app.processEvents()
+
     window = MainWindow()
-    window.show()
+
+    def _finish_startup():
+        window.show()
+        window.raise_()
+        window.activateWindow()
+        splash.finish(window)
+
+    QTimer.singleShot(0, window.begin_startup)
+    QTimer.singleShot(6000, _finish_startup)
 
     # Ensure cleanup on exit
     atexit.register(lambda: wake_lock.release())
