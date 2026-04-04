@@ -137,7 +137,7 @@ class ModelCard(QWidget):
         layout.addLayout(progress_row)
 
         self._progress_label = QLabel("")
-        self._progress_label.setStyleSheet(f"color: {COLORS.text_muted}; font-size: 10px; background: transparent;")
+        self._progress_label.setStyleSheet(f"color: {COLORS.text_primary}; font-size: 10px; font-weight: 600; background: transparent;")
         self._progress_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self._progress_label)
 
@@ -218,7 +218,7 @@ class ModelCard(QWidget):
         self._is_paused = False
         self._progress.setVisible(True)
         self._progress_label.setVisible(True)
-        self._progress_label.setText("Downloading...")
+        self._progress_label.setText("Downloading — 0%")
         self._pause_btn.setVisible(True)
         if hasattr(self, '_install_btn'):
             self._install_btn.setVisible(False)
@@ -268,7 +268,7 @@ class ModelCard(QWidget):
             self._progress.setValue(pct)
             mb = completed / (1024 * 1024)
             mb_total = total / (1024 * 1024)
-            self._progress_label.setText(f"{status} — {mb:.0f}/{mb_total:.0f} MB")
+            self._progress_label.setText(f"{status} — {pct}% ({mb:.0f}/{mb_total:.0f} MB)")
         else:
             self._progress_label.setText(status)
 

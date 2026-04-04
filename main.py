@@ -29,7 +29,7 @@ from app.services.download_state import (
 )
 from app.widgets.sidebar import Sidebar
 from app.widgets.status_bar import StatusBar
-from app.widgets.popup import ToastNotification, ShutdownDialog
+from app.widgets.popup import ToastNotification, ShutdownDialog, ConfirmDialog
 from app.pages.setup_page import SetupPage
 from app.pages.home_page import HomePage
 from app.pages.discover_page import DiscoverPage
@@ -63,6 +63,9 @@ class MainWindow(QMainWindow):
 
         # Real-time progress cache for active downloads: tag -> {pct, completed, total, status}
         self._progress_cache: dict = {}
+
+        # Install confirmation popup
+        self._install_confirm_dialog = None
 
         # Shutdown state
         self._shutdown_in_progress = False
@@ -145,9 +148,7 @@ class MainWindow(QMainWindow):
         self._manage_page = ManagePage(self._api, self._catalog)
         self._manage_page.open_chat_requested.connect(self._open_chat_model)
         self._manage_page.model_deleted.connect(self._on_model_deleted)
-        self._manage_page.cache_cleared.connect(
-            lambda: self._show_toast("Cache cleared successfully!", "success")
-        )
+        self._manage_page.cache_cleared.connect(self._on_cache_cleared)
         self._pages.addWidget(self._manage_page)
 
         # Logs
@@ -302,12 +303,43 @@ class MainWindow(QMainWindow):
     def _install_model(self, model: dict):
         """Install (or resume) a model from the catalog."""
         tag = model.get("tag", "")
-        size_gb = model.get("size_gb", 0)
-        min_ram = model.get("min_ram_gb", 0)
 
         if not tag:
             self._show_toast("This catalog entry is missing an Ollama tag.", "error")
             return
+
+        # Already downloading?
+        if tag in self._active_pulls:
+            self._show_toast(f"{model.get('name', tag)} is already downloading", "info")
+            return
+
+        self._show_install_confirmation(model)
+
+    def _show_install_confirmation(self, model: dict):
+        """Show a confirmation dialog before starting a model pull."""
+        name = model.get("name", model.get("tag", "Unknown model"))
+        size_gb = float(model.get("size_gb", 0) or 0)
+
+        message = (
+            f"Starting installation of {name} will reserve approximately {size_gb:.1f} GB of disk space in your AIUI storage.\n\n"
+            "If you pause the download later, you can reclaim the allocated space from Manage > Clear Cache.\n\n"
+            "Select Start Install to continue, or Cancel to return."
+        )
+
+        self._install_confirm_dialog = ConfirmDialog(
+            title="Confirm Installation",
+            message=message,
+            confirm_text="Start Install",
+            on_confirm=lambda m=model: self._begin_model_install(m),
+            parent=self,
+        )
+        self._install_confirm_dialog.show_centered(self)
+
+    def _begin_model_install(self, model: dict):
+        """Start a model install after the user confirms."""
+        tag = model.get("tag", "")
+        size_gb = model.get("size_gb", 0)
+        min_ram = model.get("min_ram_gb", 0)
 
         if not self._api.is_available():
             if self._ollama_manager.is_running:
@@ -320,11 +352,6 @@ class MainWindow(QMainWindow):
                     "Ollama server is not running. Start it and try again.",
                     "error",
                 )
-            return
-
-        # Already downloading?
-        if tag in self._active_pulls:
-            self._show_toast(f"{model.get('name', tag)} is already downloading", "info")
             return
 
         # Check compatibility (skip for resumes — already checked first time)
@@ -440,6 +467,13 @@ class MainWindow(QMainWindow):
                 self._log_event(f"Model install failed: {name} — {message}")
 
         self._sync_discover_page_state(refresh=True)
+
+    def _on_cache_cleared(self):
+        """Clear paused download state after the cache cleanup dialog runs."""
+        self._download_states.clear()
+        save_download_states(self._download_states)
+        self._sync_discover_page_state(refresh=self._pages.currentWidget() == self._discover_page)
+        self._show_toast("Cache cleared successfully!", "success")
 
     def _delete_model(self, model: dict):
         """Delete a model."""

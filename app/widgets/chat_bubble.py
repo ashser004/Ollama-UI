@@ -22,6 +22,7 @@ class ChatBubble(QWidget):
         super().__init__(parent)
         self._content = content
         self._role = role
+        self._content_label: QLabel | None = None
 
         is_user = role == "user"
 
@@ -104,35 +105,41 @@ class ChatBubble(QWidget):
             padding: 0px;
         """)
         bubble_layout.addWidget(content_label)
+        self._content_label = content_label
 
-        # Bottom row: copy button (only for assistant)
-        if not is_user:
-            bottom = QHBoxLayout()
-            bottom.addStretch()
+        # Bottom row: copy button
+        bottom = QHBoxLayout()
+        bottom.addStretch()
 
-            copy_btn = QPushButton("Copy")
-            copy_btn.setCursor(QCursor(Qt.PointingHandCursor))
-            copy_btn.setFixedHeight(24)
-            copy_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: transparent;
-                    color: {COLORS.text_muted};
-                    border: none;
-                    font-size: 11px;
-                    padding: 2px 8px;
-                    border-radius: 6px;
-                }}
-                QPushButton:hover {{
-                    background: {COLORS.bg_hover};
-                    color: {COLORS.text_primary};
-                }}
-            """)
-            copy_btn.clicked.connect(lambda: self.copy_requested.emit(self._content))
-            bottom.addWidget(copy_btn)
+        copy_btn = QPushButton("Copy")
+        copy_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        copy_btn.setFixedHeight(24)
+        copy_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {COLORS.text_muted};
+                border: none;
+                font-size: 11px;
+                padding: 2px 8px;
+                border-radius: 6px;
+            }}
+            QPushButton:hover {{
+                background: {COLORS.bg_hover};
+                color: {COLORS.text_primary};
+            }}
+        """)
+        copy_btn.clicked.connect(lambda: self.copy_requested.emit(self._content))
+        bottom.addWidget(copy_btn)
 
-            bubble_layout.addLayout(bottom)
+        bubble_layout.addLayout(bottom)
 
         layout.addWidget(bubble)
 
         if not is_user:
             layout.addStretch()
+
+    def set_content(self, content: str, show_cursor: bool = False):
+        """Update the bubble text and keep copy content in sync."""
+        self._content = content
+        if self._content_label:
+            self._content_label.setText(content + (" ▊" if show_cursor else ""))

@@ -574,10 +574,11 @@ class ChatView(QWidget):
 
         # Create placeholder assistant bubble
         self._current_bubble = ChatBubble(
-            "assistant", "▊",
+            "assistant", "",
             model=self._current_model if self._is_agentic else None
         )
         self._current_bubble.copy_requested.connect(self._copy_text)
+        self._current_bubble.set_content("", show_cursor=True)
         self._msg_list.insertWidget(self._msg_list.count() - 1, self._current_bubble)
         self._scroll_to_bottom()
 
@@ -596,15 +597,7 @@ class ChatView(QWidget):
         self._current_response += text
         # Update bubble content
         if self._current_bubble:
-            # Re-create the content label
-            content_label = self._current_bubble.findChild(QLabel)
-            if content_label:
-                # Get all QLabels and update the content one
-                labels = self._current_bubble.findChildren(QLabel)
-                for label in labels:
-                    if label.text().endswith("▊") or label.textInteractionFlags() & Qt.TextSelectableByMouse:
-                        label.setText(self._current_response + " ▊")
-                        break
+            self._current_bubble.set_content(self._current_response, show_cursor=True)
         self._scroll_to_bottom()
 
     @Slot(bool, str)
@@ -623,19 +616,13 @@ class ChatView(QWidget):
 
             # Update bubble to remove cursor
             if self._current_bubble:
-                labels = self._current_bubble.findChildren(QLabel)
-                for label in labels:
-                    if label.textInteractionFlags() & Qt.TextSelectableByMouse:
-                        label.setText(self._current_response)
-                        break
+                self._current_bubble.set_content(self._current_response, show_cursor=False)
         elif not success:
             if self._current_bubble:
-                labels = self._current_bubble.findChildren(QLabel)
-                for label in labels:
-                    if label.textInteractionFlags() & Qt.TextSelectableByMouse:
-                        label.setText(f"Error: {full_response}")
-                        label.setStyleSheet(f"color: {COLORS.error}; font-size: 13px; background: transparent;")
-                        break
+                self._current_bubble.set_content(f"Error: {full_response}", show_cursor=False)
+                content_label = self._current_bubble._content_label
+                if content_label:
+                    content_label.setStyleSheet(f"color: {COLORS.error}; font-size: 13px; background: transparent;")
 
         self._current_bubble = None
         self._current_response = ""

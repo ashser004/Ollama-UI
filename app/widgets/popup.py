@@ -180,8 +180,9 @@ class ConfirmDialog(QWidget):
                  on_cancel=None, confirm_text="Confirm", parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Dialog)
+        self.setWindowModality(Qt.ApplicationModal)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setFixedSize(420, 200)
+        self.setFixedSize(480, 240)
         self._on_confirm = on_confirm
         self._on_cancel = on_cancel
 
@@ -277,6 +278,8 @@ class ConfirmDialog(QWidget):
             y = geo.y() + (geo.height() - self.height()) // 2
             self.move(x, y)
         self.show()
+        self.raise_()
+        self.activateWindow()
 
 
 # ─────────────────────────────────────────────────────────────

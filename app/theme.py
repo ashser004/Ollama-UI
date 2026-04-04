@@ -231,14 +231,15 @@ def get_stylesheet() -> str:
         border: 1px solid {c.border_default};
         border-radius: 6px;
         text-align: center;
-        color: {c.text_secondary};
+        color: {c.text_on_accent};
         min-height: 14px;
         max-height: 14px;
         font-size: 10px;
+        font-weight: 700;
     }}
     QProgressBar::chunk {{
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 {c.accent_gradient_start}, stop:1 {c.accent_gradient_end});
+            stop:0 {c.accent_secondary}, stop:1 {c.accent_hover});
         border-radius: 5px;
     }}
 
