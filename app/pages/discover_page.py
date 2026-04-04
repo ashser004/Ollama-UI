@@ -37,6 +37,9 @@ class DiscoverPage(QWidget):
     def set_download_states(self, states: dict):
         self._discovery.set_download_states(states)
 
+    def set_active_downloads(self, active_tags: set[str]):
+        self._discovery.set_active_downloads(active_tags)
+
     def refresh(self):
         self._discovery.refresh()
 

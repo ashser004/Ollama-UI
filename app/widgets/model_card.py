@@ -82,6 +82,7 @@ class ModelCard(QWidget):
         # Capability tags
         tags_layout = QHBoxLayout()
         tags_layout.setSpacing(6)
+        capabilities = [cap.lower() for cap in model.get("capabilities", [])]
         for cap in model.get("capabilities", []):
             tag = QLabel(cap.capitalize())
             tag.setStyleSheet(tag_badge_style(get_tag_color(cap)))
@@ -89,7 +90,7 @@ class ModelCard(QWidget):
             tags_layout.addWidget(tag)
 
         # Vision indicator
-        if model.get("supports_images"):
+        if model.get("supports_images") and "vision" not in capabilities:
             vision_tag = QLabel("Vision")
             vision_tag.setStyleSheet(tag_badge_style(COLORS.tag_vision))
             vision_tag.setFixedHeight(22)

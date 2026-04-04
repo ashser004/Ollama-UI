@@ -179,8 +179,8 @@
       "context_window": 8192
     },
     {
-      "name": "DeepSeek Coder V2 Lite",
-      "tag": "deepseek-coder-v2:lite",
+      "name": "DeepSeek Coder V2 16B",
+      "tag": "deepseek-coder-v2:16b",
       "size_gb": 8.9,
       "min_ram_gb": 12,
       "description": "16B MoE coding model. Professional-grade code gen with explanation.",

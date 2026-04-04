@@ -241,7 +241,9 @@ class MainWindow(QMainWindow):
 
         # Refresh current page
         current = self._pages.currentWidget()
-        if hasattr(current, 'refresh'):
+        if current == self._discover_page:
+            self._sync_discover_page_state(refresh=True)
+        elif hasattr(current, 'refresh'):
             current.refresh()
 
     @Slot()
@@ -276,10 +278,8 @@ class MainWindow(QMainWindow):
 
             if page_key == "discover":
                 # Pass paused download states so cards show resume UI
-                self._discover_page.set_download_states(self._download_states)
-                self._reconnect_active_downloads()
-
-            if hasattr(page, 'refresh'):
+                self._sync_discover_page_state(refresh=True)
+            elif hasattr(page, 'refresh'):
                 page.refresh()
 
             if page_key == "chat":
@@ -304,6 +304,23 @@ class MainWindow(QMainWindow):
         tag = model.get("tag", "")
         size_gb = model.get("size_gb", 0)
         min_ram = model.get("min_ram_gb", 0)
+
+        if not tag:
+            self._show_toast("This catalog entry is missing an Ollama tag.", "error")
+            return
+
+        if not self._api.is_available():
+            if self._ollama_manager.is_running:
+                self._show_toast(
+                    "Ollama is running but not responding yet. Try again in a moment.",
+                    "error",
+                )
+            else:
+                self._show_toast(
+                    "Ollama server is not running. Start it and try again.",
+                    "error",
+                )
+            return
 
         # Already downloading?
         if tag in self._active_pulls:
@@ -346,6 +363,7 @@ class MainWindow(QMainWindow):
             lambda success, msg: self._on_model_installed(success, msg, model)
         )
         worker.start()
+        self._sync_discover_page_state(refresh=True)
 
     def _on_pull_progress(self, tag: str, completed: int, total: int, status: str):
         """Track download progress for persistence."""
@@ -379,6 +397,7 @@ class MainWindow(QMainWindow):
         save_download_states(self._download_states)
 
         self._show_toast(f"{name} download paused", "info")
+        self._sync_discover_page_state(refresh=True)
 
     def _reconnect_active_downloads(self):
         """Reconnect active download workers to newly created cards."""
@@ -414,8 +433,13 @@ class MainWindow(QMainWindow):
         else:
             # If it was cancelled by user (pause), don't show error
             if "Cancelled" not in message:
-                self._show_toast(f"Failed to install {name}: {message}", "error")
+                self._show_toast(
+                    f"Failed to install {name}: {self._classify_install_failure(message)}",
+                    "error",
+                )
                 self._log_event(f"Model install failed: {name} — {message}")
+
+        self._sync_discover_page_state(refresh=True)
 
     def _delete_model(self, model: dict):
         """Delete a model."""
@@ -424,7 +448,7 @@ class MainWindow(QMainWindow):
         success, msg = self._api.delete_model(tag)
         if success:
             self._show_toast(f"{name} deleted", "success")
-            self._discover_page.refresh()
+            self._sync_discover_page_state(refresh=True)
         else:
             self._show_toast(f"Failed to delete {name}: {msg}", "error")
 
@@ -451,6 +475,24 @@ class MainWindow(QMainWindow):
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
             with open(log_path, "a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] {message}\n")
+
+    def _classify_install_failure(self, message: str) -> str:
+        """Turn raw install errors into user-facing diagnostics."""
+        lower = message.lower()
+        if any(token in lower for token in ("manifest", "not found", "unknown model", "404", "no such", "bad request")):
+            return "That Ollama tag was not found. Check models.json or try a different tag."
+        if any(token in lower for token in ("connection", "timed out", "timeout", "refused", "temporary failure", "no such host", "name or service not known", "dns")):
+            return "Ollama could not reach the model registry. Check your internet connection and try again."
+        return message
+
+    def _sync_discover_page_state(self, refresh: bool = False):
+        """Keep Discover in sync with active and paused downloads."""
+        self._discover_page.set_download_states(self._download_states)
+        self._discover_page.set_active_downloads(set(self._active_pulls.keys()))
+
+        if refresh and self._pages.currentWidget() == self._discover_page:
+            self._discover_page.refresh()
+            self._reconnect_active_downloads()
 
     # ─── Shutdown ────────────────────────────────────
 

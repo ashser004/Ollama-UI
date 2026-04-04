@@ -4,7 +4,7 @@ model_discovery.py — Model discovery grid with filters and search.
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QLineEdit, QPushButton, QScrollArea,
-                                QGridLayout, QFrame)
+                                QGridLayout, QFrame, QComboBox)
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QFont
 
@@ -30,6 +30,8 @@ class ModelDiscovery(QWidget):
         self._api = api
         self._monitor = monitor
         self._active_filter = "all"
+        self._sort_mode = "installed_first"
+        self._active_downloads: set[str] = set()
         self._cards: list[ModelCard] = []
         self._paused_states: dict = {}  # tag -> {progress_pct, ...}
 
@@ -59,32 +61,87 @@ class ModelDiscovery(QWidget):
 
         layout.addLayout(header)
 
-        # Search bar
+        # Search + sort row
+        controls_layout = QHBoxLayout()
+        controls_layout.setSpacing(12)
+
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search models by name, capability, or keyword...")
         self._search.setFixedHeight(44)
         self._search.setStyleSheet(search_bar_style())
         self._search.textChanged.connect(self._on_search)
-        layout.addWidget(self._search)
+        controls_layout.addWidget(self._search, 1)
+
+        sort_shell = QWidget()
+        sort_shell.setFixedHeight(44)
+        sort_shell.setMinimumWidth(240)
+        sort_shell.setStyleSheet(f"""
+            QWidget {{
+                background-color: {COLORS.bg_elevated};
+                border: 1px solid {COLORS.border_hover};
+                border-radius: 12px;
+            }}
+        """)
+        sort_layout = QHBoxLayout(sort_shell)
+        sort_layout.setContentsMargins(12, 0, 10, 0)
+        sort_layout.setSpacing(8)
+
+        self._sort_combo = QComboBox()
+        self._sort_combo.setFixedHeight(30)
+        self._sort_combo.setMinimumWidth(188)
+        self._sort_combo.setStyleSheet(f"""
+            QComboBox {{
+                background: transparent;
+                color: {COLORS.text_primary};
+                border: none;
+                padding: 0px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 0px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {COLORS.bg_elevated};
+                color: {COLORS.text_primary};
+                border: 1px solid {COLORS.border_default};
+                selection-background-color: {COLORS.bg_hover};
+                selection-color: {COLORS.text_primary};
+                outline: none;
+            }}
+        """)
+        self._sort_combo.currentIndexChanged.connect(self._on_sort_changed)
+        sort_layout.addWidget(self._sort_combo, 1)
+
+        sort_arrow = QLabel("▾")
+        sort_arrow.setStyleSheet(f"""
+            color: {COLORS.accent_primary};
+            background: transparent;
+            font-size: 14px;
+            font-weight: 700;
+        """)
+        sort_arrow.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        sort_layout.addWidget(sort_arrow)
+
+        sort_shell.mousePressEvent = lambda event, combo=self._sort_combo: combo.showPopup()
+        controls_layout.addWidget(sort_shell)
+
+        layout.addLayout(controls_layout)
 
         # Filter chips
         filters_layout = QHBoxLayout()
         filters_layout.setSpacing(8)
-
-        all_caps = ["All", "Chat", "Coding", "Reasoning", "Vision", "Math"]
+        self._filters_layout = filters_layout
         self._filter_buttons: dict[str, QPushButton] = {}
+        self._refresh_capability_filters()
 
-        for cap in all_caps:
-            btn = QPushButton(cap)
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.setFixedHeight(32)
-            btn.clicked.connect(lambda checked, c=cap: self._set_filter(c))
-            self._filter_buttons[cap.lower()] = btn
-            filters_layout.addWidget(btn)
-
-        filters_layout.addStretch()
         layout.addLayout(filters_layout)
 
+        self._build_sort_options()
         self._update_filter_styles()
 
         # Warning bar (hidden by default)
@@ -123,8 +180,89 @@ class ModelDiscovery(QWidget):
         """Set paused/persisted download states for card creation."""
         self._paused_states = states
 
+    def set_active_downloads(self, active_tags: set[str]):
+        """Set tags that are currently downloading."""
+        self._active_downloads = set(active_tags)
+
+    def _clear_layout(self, layout):
+        """Remove all widgets/items from a layout."""
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+    def _build_sort_options(self):
+        """Populate the sort selector."""
+        self._sort_combo.blockSignals(True)
+        self._sort_combo.clear()
+        self._sort_combo.addItem("Installed first", "installed_first")
+        self._sort_combo.addItem("Size: small → large", "size_asc")
+        self._sort_combo.addItem("Size: large → small", "size_desc")
+        self._sort_combo.addItem("Name: A → Z", "name_asc")
+        self._sort_combo.addItem("Name: Z → A", "name_desc")
+
+        index = self._sort_combo.findData(self._sort_mode)
+        self._sort_combo.setCurrentIndex(index if index >= 0 else 0)
+        self._sort_combo.blockSignals(False)
+
+    def _refresh_capability_filters(self):
+        """Rebuild the top filter chips from the current catalog."""
+        capabilities = self._catalog.get_capabilities()
+        desired_keys = ["all"] + [cap.lower() for cap in capabilities]
+        if list(self._filter_buttons.keys()) == desired_keys:
+            return
+
+        current_filter = self._active_filter
+
+        self._clear_layout(self._filters_layout)
+        self._filter_buttons.clear()
+
+        for cap in ["All"] + capabilities:
+            btn = QPushButton(cap.capitalize())
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setFixedHeight(32)
+            btn.clicked.connect(lambda checked, c=cap: self._set_filter(c))
+            self._filter_buttons[cap.lower()] = btn
+            self._filters_layout.addWidget(btn)
+
+        self._filters_layout.addStretch()
+
+        if current_filter not in self._filter_buttons:
+            self._active_filter = "all"
+
+        self._update_filter_styles()
+
+    def _on_sort_changed(self, index: int):
+        """Handle sort selection changes."""
+        mode = self._sort_combo.itemData(index)
+        if mode:
+            self._sort_mode = mode
+            self.refresh()
+
+    def _sort_models(self, models: list[dict]) -> list[dict]:
+        """Return models ordered by the selected sort mode."""
+        if self._sort_mode == "size_asc":
+            return sorted(models, key=lambda model: (model.get("size_gb", 0), model.get("name", "").lower(), model.get("tag", "").lower()))
+        if self._sort_mode == "size_desc":
+            return sorted(models, key=lambda model: (model.get("size_gb", 0), model.get("name", "").lower(), model.get("tag", "").lower()), reverse=True)
+        if self._sort_mode == "name_desc":
+            return sorted(models, key=lambda model: (model.get("name", "").lower(), model.get("tag", "").lower()), reverse=True)
+        if self._sort_mode == "name_asc":
+            return sorted(models, key=lambda model: (model.get("name", "").lower(), model.get("tag", "").lower()))
+
+        def installed_first_key(model: dict):
+            tag = model.get("tag", "")
+            is_installed = bool(model.get("is_installed"))
+            is_working = tag in self._active_downloads or tag in self._paused_states
+            group = 0 if is_installed else 1 if is_working else 2
+            return (group, model.get("name", "").lower(), tag.lower())
+
+        return sorted(models, key=installed_first_key)
+
     def refresh(self):
         """Refresh the model grid."""
+        self._refresh_capability_filters()
+
         # Update storage info
         disk_free = self._monitor.get_available_disk_gb()
         self._storage_label.setText(f"{disk_free:.1f} GB free")
@@ -158,6 +296,12 @@ class ModelDiscovery(QWidget):
             installed_tags=installed_tags,
         )
 
+        for model in models:
+            tag = model.get("tag", "")
+            model["is_pulling"] = tag in self._active_downloads or tag in self._paused_states
+
+        models = self._sort_models(models)
+
         # Clear existing cards
         self._clear_grid()
 
@@ -166,16 +310,28 @@ class ModelDiscovery(QWidget):
         for i, model in enumerate(models):
             # Inject paused state if applicable
             tag = model.get("tag", "")
-            if not model.get("is_installed") and tag in self._paused_states:
+            if tag in self._active_downloads and not model.get("is_installed"):
+                card = ModelCard(model)
+                card.install_requested.connect(self.install_requested.emit)
+                card.open_requested.connect(self.open_chat_requested.emit)
+                card.delete_requested.connect(self.delete_requested.emit)
+                card.pause_requested.connect(self.pause_requested.emit)
+                card.set_downloading()
+            elif not model.get("is_installed") and tag in self._paused_states:
                 state = self._paused_states[tag]
                 model["is_paused"] = True
                 model["paused_progress_pct"] = state.get("progress_pct", 0)
-
-            card = ModelCard(model)
-            card.install_requested.connect(self.install_requested.emit)
-            card.open_requested.connect(self.open_chat_requested.emit)
-            card.delete_requested.connect(self.delete_requested.emit)
-            card.pause_requested.connect(self.pause_requested.emit)
+                card = ModelCard(model)
+                card.install_requested.connect(self.install_requested.emit)
+                card.open_requested.connect(self.open_chat_requested.emit)
+                card.delete_requested.connect(self.delete_requested.emit)
+                card.pause_requested.connect(self.pause_requested.emit)
+            else:
+                card = ModelCard(model)
+                card.install_requested.connect(self.install_requested.emit)
+                card.open_requested.connect(self.open_chat_requested.emit)
+                card.delete_requested.connect(self.delete_requested.emit)
+                card.pause_requested.connect(self.pause_requested.emit)
             self._grid_layout.addWidget(card, i // cols, i % cols)
             self._cards.append(card)
 
