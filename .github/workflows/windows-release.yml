@@ -1,0 +1,78 @@
+name: Build Windows Installer
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-installer:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify release version
+        shell: powershell
+        run: |
+          $tagVersion = "${env:GITHUB_REF_NAME}".TrimStart('v')
+          $configLine = Get-Content "app/config.py" | Where-Object { $_ -match '^APP_VERSION\s*=' } | Select-Object -First 1
+          if ($configLine -notmatch '^APP_VERSION\s*=\s*["'']([^"'']+)["'']') {
+            throw "APP_VERSION not found in app/config.py"
+          }
+          $configVersion = $Matches[1]
+          if ($configVersion -ne $tagVersion) {
+            throw "Tag version $tagVersion does not match app version $configVersion"
+          }
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Build LOCAL AI app
+        run: |
+          python -m PyInstaller "LOCAL AI.spec"
+
+      - name: Generate installer icon
+        run: |
+          python scripts/generate_installer_icon.py "app/icon/icon-ui.png" "build/installer/LOCAL AI.ico"
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build Windows installer
+        shell: powershell
+        run: |
+          $appVersion = "${env:GITHUB_REF_NAME}".TrimStart('v')
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc "installer\LOCAL AI.iss" /DAppVersion=$appVersion
+
+      - name: Write checksum
+        shell: powershell
+        run: |
+          $installer = "build/installer/LOCAL AI Setup.exe"
+          $hash = Get-FileHash $installer -Algorithm SHA256
+          "$($hash.Hash)  $installer" | Out-File -Encoding ascii "build/installer/LOCAL AI Setup.sha256.txt"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: LOCAL AI ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            build/installer/LOCAL AI Setup.exe
+            build/installer/LOCAL AI Setup.sha256.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -108,6 +108,14 @@ Later, push `models.json` to your GitHub repo. Update `config.py` to fetch from:
 https://raw.githubusercontent.com/ashser004/LOCALAIUI/main/models.json
 ```
 
+## Windows Releases
+
+Tag pushes that start with `v` now trigger the Windows release workflow. The workflow builds the app with PyInstaller, converts `app/icon/icon-ui.png` into an installer `.ico` with Pillow, compiles the Inno Setup installer, and uploads `LOCAL AI Setup.exe` plus a SHA-256 checksum to the GitHub Releases page.
+
+Before tagging a release, bump `APP_VERSION` in `app/config.py` so the About dialog, installer metadata, and Git tag all stay aligned.
+
+Release assets are produced only from tag pushes, so pushing normal branch commits will not publish a release.
+
 ## Developer
 
 **Ashmith Babu P S** — [github.com/ashser004](https://github.com/ashser004)
