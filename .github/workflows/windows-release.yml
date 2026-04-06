@@ -40,15 +40,22 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pyinstaller
 
-      - name: Build LOCAL AI app
+      - name: Clean build artifacts
+        shell: powershell
         run: |
-          python -m PyInstaller "LOCAL AI.spec"
+          Remove-Item build, dist -Recurse -Force -ErrorAction SilentlyContinue
 
       - name: Generate installer icon
         run: |
           python scripts/generate_installer_icon.py "app/icon/icon-ui.png" "build/installer/LOCAL AI.ico"
 
+      - name: Build LOCAL AI app
+        shell: cmd
+        run: |
+          python -m PyInstaller --onefile --windowed --clean --noconfirm --name "LOCAL AI" --icon "build\installer\LOCAL AI.ico" --add-data "models.json;." --add-data "app\icon;app\icon" main.py
+
       - name: Install Inno Setup
+        shell: cmd
         run: choco install innosetup -y --no-progress
 
       - name: Build Windows installer
