@@ -42,7 +42,7 @@ Source: "..\dist\LOCAL AI.exe"; DestDir: "{app}"; Flags: ignoreversion
 [Icons]
 Name: "{group}\LOCAL AI"; Filename: "{app}\{#AppExeName}"
 Name: "{group}\Uninstall LOCAL AI"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\LOCAL AI"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+Name: "{userdesktop}\LOCAL AI"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch LOCAL AI"; Flags: nowait postinstall skipifsilent
