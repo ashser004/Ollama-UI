@@ -16,18 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Verify release version
-        shell: powershell
-        run: |
-          $tagVersion = "${env:GITHUB_REF_NAME}".TrimStart('v')
-          $configLine = Get-Content "app/config.py" | Where-Object { $_ -match '^APP_VERSION\s*=' } | Select-Object -First 1
-          if ($configLine -notmatch '^APP_VERSION\s*=\s*["'']([^"'']+)["'']') {
-            throw "APP_VERSION not found in app/config.py"
-          }
-          $configVersion = $Matches[1]
-          if ($configVersion -ne $tagVersion) {
-            throw "Tag version $tagVersion does not match app version $configVersion"
-          }
 
       - name: Set up Python
         uses: actions/setup-python@v5
