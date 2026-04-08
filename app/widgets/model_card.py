@@ -69,6 +69,20 @@ class ModelCard(QWidget):
         """)
         top_row.addWidget(size_label)
 
+        # Min RAM tag
+        min_ram = model.get("min_ram_gb", 0)
+        if min_ram > 0:
+            ram_label = QLabel(f"{min_ram:.0f} GB RAM")
+            ram_color = COLORS.success if min_ram <= 4 else COLORS.warning if min_ram <= 8 else COLORS.error
+            ram_label.setStyleSheet(f"""
+                font-size: 10px; font-weight: 600;
+                color: {ram_color}; background: {ram_color}18;
+                padding: 2px 8px;
+                border: 1px solid {ram_color}44;
+                border-radius: 8px;
+            """)
+            top_row.addWidget(ram_label)
+
         layout.addLayout(top_row)
 
         # Description
@@ -264,13 +278,20 @@ class ModelCard(QWidget):
 
         if total > 0:
             pct = int((completed / total) * 100)
+            # Clamp to 99% during download — 100% is only set by install_finished
+            pct = min(pct, 99)
             self._last_pct = pct
             self._progress.setValue(pct)
             mb = completed / (1024 * 1024)
             mb_total = total / (1024 * 1024)
             self._progress_label.setText(f"{status} — {pct}% ({mb:.0f}/{mb_total:.0f} MB)")
         else:
-            self._progress_label.setText(status)
+            # Phases like "verifying sha256 digest" have no total
+            if "verif" in status.lower():
+                self._progress.setValue(99)
+                self._progress_label.setText("Verifying download...")
+            else:
+                self._progress_label.setText(status)
 
     @Slot(bool, str)
     def install_finished(self, success: bool, message: str):

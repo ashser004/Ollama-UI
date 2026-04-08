@@ -60,6 +60,13 @@ class ChatView(QWidget):
     back_requested = Signal()
     navigate_to_discover = Signal()
 
+    # Smart context budget caps (tokens) — prevents excessive RAM usage
+    # We don't fill the entire context window; we use practical, efficient limits
+    _SMALL_CTX_BUDGET = 4096      # for models with ≤8K context
+    _MEDIUM_CTX_BUDGET = 8192     # for models with ≤32K context
+    _LARGE_CTX_BUDGET = 16384     # for models with >32K context
+    _RESPONSE_RESERVE_RATIO = 0.4 # reserve 40% of budget for the model's response
+
     def __init__(self, api: OllamaAPI, catalog: ModelCatalog, parent=None):
         super().__init__(parent)
         self._api = api
@@ -69,7 +76,6 @@ class ChatView(QWidget):
         self._is_streaming = False
         self._current_bubble: ChatBubble | None = None
         self._current_response = ""
-        self._is_agentic = False
         self._attached_images: list[str] = []
 
         layout = QVBoxLayout(self)
@@ -172,32 +178,6 @@ class ChatView(QWidget):
         top_layout.addWidget(model_picker)
 
         top_layout.addStretch()
-
-        # Agentic mode toggle
-        self._agentic_btn = QPushButton("~ Agentic Mode")
-        self._agentic_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        self._agentic_btn.setFixedHeight(32)
-        self._agentic_btn.setCheckable(True)
-        self._agentic_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: {COLORS.bg_elevated};
-                color: {COLORS.text_secondary};
-                border: 1px solid {COLORS.border_default};
-                border-radius: 16px;
-                padding: 4px 16px;
-                font-size: 12px;
-            }}
-            QPushButton:checked {{
-                background: {COLORS.accent_primary}22;
-                color: {COLORS.accent_primary};
-                border-color: {COLORS.accent_primary}44;
-            }}
-            QPushButton:hover {{
-                background: {COLORS.bg_hover};
-            }}
-        """)
-        self._agentic_btn.toggled.connect(self._toggle_agentic)
-        top_layout.addWidget(self._agentic_btn)
 
         # New chat button
         new_btn = QPushButton("+ New")
@@ -484,8 +464,6 @@ class ChatView(QWidget):
         conv = db.get_conversation(conv_id)
         if conv:
             self._current_model = conv["model"]
-            self._is_agentic = bool(conv["is_agentic"])
-            self._agentic_btn.setChecked(self._is_agentic)
 
         self._sync_current_model_selection(self._current_model)
         self._load_messages()
@@ -544,7 +522,7 @@ class ChatView(QWidget):
         if self._conversation_id is None:
             title = text[:40] + "..." if len(text) > 40 else text
             self._conversation_id = db.create_conversation(
-                self._current_model, title, self._is_agentic
+                self._current_model, title, False
             )
 
         # Save user message
@@ -558,12 +536,15 @@ class ChatView(QWidget):
         user_bubble = ChatBubble("user", text, images=self._attached_images)
         self._msg_list.insertWidget(self._msg_list.count() - 1, user_bubble)
 
-        # Prepare API messages
-        recent = db.get_recent_messages(self._conversation_id, limit=20)
-        api_messages = []
-        for msg in recent:
-            api_msg = {"role": msg["role"], "content": msg["content"]}
-            api_messages.append(api_msg)
+        # ── Smart context management ──
+        # Look up model's context window from catalog
+        model_ctx_window = self._get_model_context_window()
+        ctx_budget = self._compute_context_budget(model_ctx_window)
+        num_ctx_for_api = ctx_budget  # tell Ollama how much context to allocate
+
+        # Build messages that fit within the budget (reserve space for response)
+        available_tokens = int(ctx_budget * (1.0 - self._RESPONSE_RESERVE_RATIO))
+        api_messages = self._build_context_messages(available_tokens)
 
         # Start streaming response
         self._is_streaming = True
@@ -573,10 +554,7 @@ class ChatView(QWidget):
         self._input.clear()
 
         # Create placeholder assistant bubble
-        self._current_bubble = ChatBubble(
-            "assistant", "",
-            model=self._current_model if self._is_agentic else None
-        )
+        self._current_bubble = ChatBubble("assistant", "")
         self._current_bubble.copy_requested.connect(self._copy_text)
         self._current_bubble.set_content("", show_cursor=True)
         self._msg_list.insertWidget(self._msg_list.count() - 1, self._current_bubble)
@@ -586,7 +564,10 @@ class ChatView(QWidget):
         images_b64 = self._attached_images.copy() if self._attached_images else None
         self._attached_images.clear()
 
-        worker = self._api.chat_stream(self._current_model, api_messages, images_b64)
+        worker = self._api.chat_stream(
+            self._current_model, api_messages, images_b64,
+            num_ctx=num_ctx_for_api
+        )
         worker.chunk_received.connect(self._on_chunk)
         worker.finished_signal.connect(self._on_stream_done)
         worker.start()
@@ -648,21 +629,82 @@ class ChatView(QWidget):
         self._refresh_history()
 
     def _on_model_changed(self, model_name: str):
-        """Handle model selection change."""
+        """Handle model selection change.
+
+        When switching models mid-chat, unloads the old model from
+        memory to free RAM before loading the new one.
+        """
         if model_name:
+            old_model = self._current_model
             self._current_model = model_name
-            if self._is_agentic and self._conversation_id:
+
+            # Unload old model from RAM if switching to a different one
+            if old_model and old_model != model_name:
+                self._api.unload_model(old_model)
+
+            # Update conversation record so it tracks the active model
+            if self._conversation_id:
                 db.update_conversation_model(self._conversation_id, model_name)
+
             self._update_input_capabilities()
 
-    def _toggle_agentic(self, checked: bool):
-        """Toggle agentic mode."""
-        self._is_agentic = checked
-        if self._conversation_id:
-            # Re-create conversation as agentic if toggled mid-chat
-            conv = db.get_conversation(self._conversation_id)
-            if conv:
-                pass  # Allow toggling
+    # ── Smart Context Helpers ──────────────────────────
+
+    def _get_model_context_window(self) -> int:
+        """Look up the current model's context window from the catalog."""
+        if not self._current_model:
+            return 4096
+
+        base = self._current_model.split(":")[0]
+        info = (
+            self._catalog.get_model_by_tag(base)
+            or self._catalog.get_model_by_tag(self._current_model)
+        )
+        if info:
+            return info.get("context_window", 4096)
+        return 4096
+
+    def _compute_context_budget(self, model_ctx_window: int) -> int:
+        """Choose a practical context budget that balances quality vs RAM.
+
+        We don't fill the entire window (e.g. 128K) — that would waste
+        RAM for no real benefit. Instead we pick a sensible cap.
+        """
+        if model_ctx_window <= 8192:
+            return min(model_ctx_window, self._SMALL_CTX_BUDGET)
+        if model_ctx_window <= 32768:
+            return min(model_ctx_window, self._MEDIUM_CTX_BUDGET)
+        return min(model_ctx_window, self._LARGE_CTX_BUDGET)
+
+    def _build_context_messages(self, available_tokens: int) -> list[dict]:
+        """Build the message history that fits within the token budget.
+
+        Works newest-first to always include the latest exchange,
+        then fills backwards with as much history as fits.
+        Assumes ~4 characters per token (rough estimate for English).
+        """
+        if not self._conversation_id:
+            return []
+
+        # Fetch a generous number of recent messages from DB
+        all_recent = db.get_recent_messages(self._conversation_id, limit=50)
+        if not all_recent:
+            return []
+
+        chars_budget = available_tokens * 4  # ~4 chars per token
+        selected: list[dict] = []
+        used_chars = 0
+
+        # Walk from newest to oldest, picking messages that fit
+        for msg in reversed(all_recent):
+            content = msg.get("content", "")
+            msg_chars = len(content) + 20  # +20 for role/overhead
+            if used_chars + msg_chars > chars_budget and selected:
+                break  # budget exhausted (but always keep at least 1 message)
+            selected.insert(0, {"role": msg["role"], "content": content})
+            used_chars += msg_chars
+
+        return selected
 
     def _update_input_capabilities(self):
         """Show/hide image and file buttons based on model capabilities."""

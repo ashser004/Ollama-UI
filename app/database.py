@@ -145,7 +145,7 @@ def update_conversation_title(conv_id: int, title: str):
 
 
 def update_conversation_model(conv_id: int, model: str):
-    """Update conversation's active model (for agentic mode)."""
+    """Update conversation's active model when user switches models mid-chat."""
     conn = _get_connection()
     try:
         conn.execute(

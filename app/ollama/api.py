@@ -187,13 +187,15 @@ class OllamaAPI(QObject):
     # ─── Chat (streaming) ─────────────────────────
 
     def chat_stream(self, model: str, messages: list[dict],
-                    images: list[str] = None) -> _StreamWorker:
+                    images: list[str] = None,
+                    num_ctx: int = None) -> _StreamWorker:
         """
         Start a streaming chat. Returns a StreamWorker thread.
         Connect to its .chunk_received and .finished_signal signals.
 
         messages: [{"role": "user"|"assistant"|"system", "content": "..."}]
         images: optional list of base64 image strings (for vision models)
+        num_ctx: context window size to use (tokens). If None, Ollama uses default.
         """
         if self._current_stream and self._current_stream.isRunning():
             self._current_stream.abort()
@@ -204,6 +206,10 @@ class OllamaAPI(QObject):
             "messages": messages,
             "stream": True
         }
+
+        # Set context window size so the model uses adequate context
+        if num_ctx and num_ctx > 0:
+            payload["options"] = {"num_ctx": num_ctx}
 
         # Add images to the last user message if provided
         if images and messages:
@@ -236,6 +242,31 @@ class OllamaAPI(QObject):
         worker = _StreamWorker(f"{self._base_url}/api/generate", payload, self)
         self._current_stream = worker
         return worker
+
+    # ─── Model Memory Management ──────────────────
+
+    def unload_model(self, model: str):
+        """Unload a model from memory to free RAM.
+
+        Uses Ollama's keep_alive=0 mechanism.
+        """
+        try:
+            requests.post(
+                f"{self._base_url}/api/chat",
+                json={"model": model, "messages": [], "keep_alive": 0},
+                timeout=10
+            )
+        except Exception:
+            pass  # Best-effort — if it fails, Ollama will auto-unload eventually
+
+    def list_running_models(self) -> list[dict]:
+        """List models currently loaded in memory."""
+        try:
+            resp = requests.get(f"{self._base_url}/api/ps", timeout=5)
+            resp.raise_for_status()
+            return resp.json().get("models", [])
+        except Exception:
+            return []
 
     # ─── Health ───────────────────────────────────
 
