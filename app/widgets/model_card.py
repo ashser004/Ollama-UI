@@ -76,9 +76,9 @@ class ModelCard(QWidget):
             ram_color = COLORS.success if min_ram <= 4 else COLORS.warning if min_ram <= 8 else COLORS.error
             ram_label.setStyleSheet(f"""
                 font-size: 10px; font-weight: 600;
-                color: {ram_color}; background: {ram_color}18;
+                color: {ram_color}; background: transparent;
                 padding: 2px 8px;
-                border: 1px solid {ram_color}44;
+                border: 1px solid {COLORS.border_default};
                 border-radius: 8px;
             """)
             top_row.addWidget(ram_label)

@@ -94,8 +94,7 @@ class ModelCatalog:
 
             if available_ram_gb is not None:
                 if model.get("min_ram_gb", 0) > available_ram_gb:
-                    can_install = False
-                    install_warning = "Not enough RAM"
+                    continue
 
             result = model.copy()
             result["is_installed"] = is_installed

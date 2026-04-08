@@ -597,7 +597,9 @@ class ChatView(QWidget):
 
             # Update bubble to remove cursor
             if self._current_bubble:
+                self._current_bubble.set_model_label(self._current_model)
                 self._current_bubble.set_content(self._current_response, show_cursor=False)
+                self._scroll_to_bottom()
         elif not success:
             if self._current_bubble:
                 self._current_bubble.set_content(f"Error: {full_response}", show_cursor=False)

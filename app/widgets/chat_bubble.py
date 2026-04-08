@@ -22,9 +22,12 @@ class ChatBubble(QWidget):
         super().__init__(parent)
         self._content = content
         self._role = role
+        self._is_user = role == "user"
         self._content_label: QLabel | None = None
+        self._model_label: QLabel | None = None
+        self._bottom_layout: QHBoxLayout | None = None
 
-        is_user = role == "user"
+        is_user = self._is_user
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 4, 0, 4)
@@ -55,16 +58,6 @@ class ChatBubble(QWidget):
         bubble_layout = QVBoxLayout(bubble)
         bubble_layout.setContentsMargins(16, 12, 16, 10)
         bubble_layout.setSpacing(6)
-
-        # Model tag (for assistant messages or agentic mode)
-        if not is_user and model:
-            model_label = QLabel(f"[{model}]")
-            model_label.setStyleSheet(f"""
-                font-size: 10px; font-weight: 600;
-                color: {COLORS.accent_primary}; background: transparent;
-                padding-bottom: 2px;
-            """)
-            bubble_layout.addWidget(model_label)
 
         # Images (for messages with image attachments)
         if images:
@@ -107,8 +100,13 @@ class ChatBubble(QWidget):
         bubble_layout.addWidget(content_label)
         self._content_label = content_label
 
-        # Bottom row: copy button
+        # Bottom row: model label + copy button
         bottom = QHBoxLayout()
+        self._bottom_layout = bottom
+
+        if not is_user and model:
+            self.set_model_label(model)
+
         bottom.addStretch()
 
         copy_btn = QPushButton("Copy")
@@ -143,3 +141,22 @@ class ChatBubble(QWidget):
         self._content = content
         if self._content_label:
             self._content_label.setText(content + (" ▊" if show_cursor else ""))
+
+    def set_model_label(self, model: str):
+        """Show or update the assistant model label in the footer row."""
+        if self._is_user or not model:
+            return
+
+        if self._model_label is None:
+            self._model_label = QLabel()
+            self._model_label.setStyleSheet(f"""
+                font-size: 10px; font-weight: 500;
+                color: {COLORS.text_muted}; background: transparent;
+                padding: 0px;
+            """)
+
+            if self._bottom_layout is not None:
+                self._bottom_layout.insertWidget(0, self._model_label)
+
+        self._model_label.setText(model)
+        self._model_label.setVisible(True)

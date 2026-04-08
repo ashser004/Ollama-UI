@@ -276,6 +276,61 @@
       "supports_images": false,
       "supports_files": false,
       "context_window": 4096
+    },
+    {
+      "name": "Phi-4 Mini",
+      "tag": "phi4-mini",
+      "size_gb": 2.5,
+      "min_ram_gb": 4,
+      "description": "Microsoft's Phi-4-mini with strong reasoning and function calling support.",
+      "capabilities": ["chat", "reasoning", "math"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 128000
+    },
+    {
+      "name": "SmolLM2 1.7B",
+      "tag": "smollm2:1.7b",
+      "size_gb": 1.0,
+      "min_ram_gb": 2,
+      "description": "Compact 1.7B language model by HuggingFace. Efficient for edge devices.",
+      "capabilities": ["chat"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 8192
+    },
+    {
+      "name": "Qwen 2.5 Coder 7B",
+      "tag": "qwen2.5-coder:7b",
+      "size_gb": 4.7,
+      "min_ram_gb": 8,
+      "description": "Qwen2.5 Code-specific 7B model. Leading open source coding abilities.",
+      "capabilities": ["coding", "chat"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 32768
+    },
+    {
+      "name": "Granite 3.3 8B",
+      "tag": "granite3.3:8b",
+      "size_gb": 4.3,
+      "min_ram_gb": 8,
+      "description": "IBM Granite 8B model fine-tuned for reasoning and instruction following.",
+      "capabilities": ["chat", "reasoning"],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 128000
+    },
+    {
+      "name": "Llama 3.2 Vision 11B",
+      "tag": "llama3.2-vision:11b",
+      "size_gb": 7.9,
+      "min_ram_gb": 10,
+      "description": "Meta's 11B multimodal model. Excellent image reasoning capabilities.",
+      "capabilities": ["chat", "vision"],
+      "supports_images": true,
+      "supports_files": false,
+      "context_window": 128000
     }
   ]
 }
