@@ -61,7 +61,7 @@ class ChatBubble(QWidget):
 
         # Images (for messages with image attachments)
         if images:
-            for img_data in images[:3]:  # max 3 images
+            for img_data in images[:5]:  # match the chat attachment limit
                 try:
                     if os.path.isfile(img_data):
                         pixmap = QPixmap(img_data)

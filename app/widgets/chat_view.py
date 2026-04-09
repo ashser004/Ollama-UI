@@ -13,6 +13,7 @@ from PySide6.QtGui import QFont, QCursor, QKeyEvent
 
 from app.theme import COLORS, accent_button_style
 from app.widgets.chat_bubble import ChatBubble
+from app.widgets.image_preview import AttachmentPreviewStrip, ImagePreviewOverlay
 from app.ollama.api import OllamaAPI
 from app.ollama.model_catalog import ModelCatalog
 from app import database as db
@@ -77,6 +78,7 @@ class ChatView(QWidget):
         self._current_bubble: ChatBubble | None = None
         self._current_response = ""
         self._attached_images: list[str] = []
+        self._image_overlay: ImagePreviewOverlay | None = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -253,6 +255,11 @@ class ChatView(QWidget):
         self._msg_scroll.setWidget(self._msg_container)
         msg_layout.addWidget(self._msg_scroll, 1)
 
+        self._attachments_strip = AttachmentPreviewStrip()
+        self._attachments_strip.remove_requested.connect(self._remove_attachment)
+        self._attachments_strip.open_requested.connect(self._open_attachment_preview)
+        msg_layout.addWidget(self._attachments_strip)
+
         # Input area
         input_area = QWidget()
         input_area.setFixedHeight(90)
@@ -267,43 +274,28 @@ class ChatView(QWidget):
         input_layout.setContentsMargins(20, 10, 20, 10)
         input_layout.setSpacing(10)
 
-        # Attachment buttons
-        self._img_btn = QPushButton("□")
-        self._img_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        self._img_btn.setFixedSize(36, 36)
-        self._img_btn.setToolTip("Attach image")
-        self._img_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: {COLORS.bg_surface};
-                border: 1px solid {COLORS.border_default};
-                border-radius: 18px;
-                font-size: 16px;
-            }}
-            QPushButton:hover {{ background: {COLORS.bg_hover}; }}
-        """)
-        self._img_btn.clicked.connect(self._attach_image)
-        input_layout.addWidget(self._img_btn)
-
-        self._file_btn = QPushButton("⎘")
-        self._file_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        self._file_btn.setFixedSize(36, 36)
-        self._file_btn.setToolTip("Attach file")
-        self._file_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: {COLORS.bg_surface};
-                border: 1px solid {COLORS.border_default};
-                border-radius: 18px;
-                font-size: 16px;
-            }}
-            QPushButton:hover {{ background: {COLORS.bg_hover}; }}
-        """)
-        self._file_btn.clicked.connect(self._attach_file)
-        input_layout.addWidget(self._file_btn)
-
         # Text input
         self._input = ChatInput()
         self._input.send_requested.connect(self._send_message)
         input_layout.addWidget(self._input, 1)
+
+        # Image attachment button
+        self._clip_btn = QPushButton("📎")
+        self._clip_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self._clip_btn.setFixedSize(36, 36)
+        self._clip_btn.setToolTip("Attach up to 5 images")
+        self._clip_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {COLORS.bg_surface};
+                color: {COLORS.text_primary};
+                border: 1px solid {COLORS.border_default};
+                border-radius: 18px;
+                font-size: 16px;
+            }}
+            QPushButton:hover {{ background: {COLORS.bg_hover}; border-color: {COLORS.accent_primary}; }}
+        """)
+        self._clip_btn.clicked.connect(self._attach_image)
+        input_layout.addWidget(self._clip_btn)
 
         # Send button
         self._send_btn = QPushButton("Send")
@@ -351,15 +343,6 @@ class ChatView(QWidget):
 
         splitter.setSizes([220, 600])
         layout.addWidget(splitter, 1)
-
-        # Attachment indicator
-        self._attach_label = QLabel("")
-        self._attach_label.setVisible(False)
-        self._attach_label.setStyleSheet(f"""
-            color: {COLORS.accent_primary}; font-size: 11px;
-            background: {COLORS.bg_surface}; padding: 4px 12px;
-            border-radius: 8px;
-        """)
 
         # ═══ Empty state overlay (shown when no models installed) ═══
         self._empty_overlay = QWidget(self)
@@ -460,6 +443,7 @@ class ChatView(QWidget):
 
     def open_conversation(self, conv_id: int):
         """Open an existing conversation."""
+        self._clear_attachments()
         self._conversation_id = conv_id
         conv = db.get_conversation(conv_id)
         if conv:
@@ -474,6 +458,7 @@ class ChatView(QWidget):
         if model:
             self._current_model = model
 
+        self._clear_attachments()
         self._conversation_id = None
         self._clear_messages()
         self._sync_current_model_selection(model)
@@ -518,6 +503,20 @@ class ChatView(QWidget):
         if not self._current_model or self._model_combo.findText(self._current_model) < 0:
             self._sync_current_model_selection(self._current_model or None)
 
+        if self._attached_images and not self._current_model_supports_images():
+            self._show_toast(
+                "The selected model does not support images. Switch to a vision-capable model first.",
+                "warning",
+            )
+            return
+
+        attachment_paths = self._attached_images.copy()
+        try:
+            attachment_images = self._encode_attachment_images(attachment_paths)
+        except OSError:
+            self._show_toast("One or more attached images could not be read.", "error")
+            return
+
         # Create conversation if needed
         if self._conversation_id is None:
             title = text[:40] + "..." if len(text) > 40 else text
@@ -529,11 +528,11 @@ class ChatView(QWidget):
         db.add_message(
             self._conversation_id, "user", text,
             model=self._current_model,
-            images=self._attached_images if self._attached_images else None
+            images=attachment_images if attachment_images else None
         )
 
         # Add user bubble
-        user_bubble = ChatBubble("user", text, images=self._attached_images)
+        user_bubble = ChatBubble("user", text, images=attachment_paths)
         self._msg_list.insertWidget(self._msg_list.count() - 1, user_bubble)
 
         # ── Smart context management ──
@@ -561,8 +560,8 @@ class ChatView(QWidget):
         self._scroll_to_bottom()
 
         # Start stream
-        images_b64 = self._attached_images.copy() if self._attached_images else None
-        self._attached_images.clear()
+        images_b64 = attachment_images if attachment_images else None
+        self._clear_attachments()
 
         worker = self._api.chat_stream(
             self._current_model, api_messages, images_b64,
@@ -629,6 +628,51 @@ class ChatView(QWidget):
     def refresh_history(self):
         """Refresh only the chat history sidebar."""
         self._refresh_history()
+
+    def _current_model_supports_images(self) -> bool:
+        """Check whether the currently selected model supports image inputs."""
+        if not self._current_model:
+            return False
+
+        base = self._current_model.split(":")[0]
+        info = self._catalog.get_model_by_tag(self._current_model)
+        if not info:
+            info = self._catalog.get_model_by_tag(base)
+        return bool(info and info.get("supports_images", False))
+
+    def _refresh_attachment_preview(self):
+        """Rebuild the attachment preview strip from the current queue."""
+        self._attachments_strip.set_attachments(self._attached_images)
+
+    def _clear_attachments(self):
+        """Clear queued attachments and hide the preview strip."""
+        self._attached_images.clear()
+        self._refresh_attachment_preview()
+
+    def _remove_attachment(self, index: int):
+        """Remove a queued attachment by index and refresh preview order."""
+        if 0 <= index < len(self._attached_images):
+            del self._attached_images[index]
+            self._refresh_attachment_preview()
+
+    def _open_attachment_preview(self, image_path: str):
+        """Open a modal overlay for the selected attachment."""
+        if self._image_overlay is not None:
+            self._image_overlay.close()
+            self._image_overlay = None
+
+        overlay = ImagePreviewOverlay(image_path, parent=self.window())
+        overlay.destroyed.connect(lambda *_: setattr(self, "_image_overlay", None))
+        self._image_overlay = overlay
+        overlay.show_for_parent(self.window())
+
+    def _encode_attachment_images(self, image_paths: list[str]) -> list[str]:
+        """Convert selected attachment file paths into base64 strings for Ollama."""
+        encoded_images: list[str] = []
+        for image_path in image_paths:
+            with open(image_path, "rb") as file_handle:
+                encoded_images.append(base64.b64encode(file_handle.read()).decode("utf-8"))
+        return encoded_images
 
     def _on_model_changed(self, model_name: str):
         """Handle model selection change.
@@ -714,26 +758,49 @@ class ChatView(QWidget):
             base = self._current_model.split(":")[0]
             info = self._catalog.get_model_by_tag(base) or self._catalog.get_model_by_tag(self._current_model)
             if info:
-                self._img_btn.setVisible(info.get("supports_images", False))
-                self._file_btn.setVisible(info.get("supports_files", False))
+                self._clip_btn.setVisible(info.get("supports_images", False))
                 return
 
-        self._img_btn.setVisible(False)
-        self._file_btn.setVisible(False)
+        self._clip_btn.setVisible(False)
 
     def _attach_image(self):
-        """Open image file picker."""
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Select Image", "",
-            "Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp)"
+        """Open a multi-select image picker and queue up to five images."""
+        if not self._current_model_supports_images():
+            self._show_toast(
+                "The selected model does not support images. Switch to a vision-capable model first.",
+                "warning",
+            )
+            return
+
+        remaining_slots = max(0, 5 - len(self._attached_images))
+        if remaining_slots == 0:
+            self._show_toast("You can attach up to 5 images per message.", "warning")
+            return
+
+        paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select Images",
+            "",
+            "Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp *.tif *.tiff)",
         )
-        if path:
-            try:
-                with open(path, "rb") as f:
-                    b64 = base64.b64encode(f.read()).decode("utf-8")
-                    self._attached_images.append(b64)
-            except Exception:
-                pass
+        if not paths:
+            return
+
+        accepted_paths: list[str] = []
+        for path in paths:
+            if len(accepted_paths) >= remaining_slots:
+                break
+            if os.path.isfile(path):
+                accepted_paths.append(path)
+
+        if not accepted_paths:
+            return
+
+        self._attached_images.extend(accepted_paths)
+        self._refresh_attachment_preview()
+
+        if len(paths) > len(accepted_paths):
+            self._show_toast("Only the first five selected images were attached.", "warning")
 
     def _attach_file(self):
         """Open file picker — shows popup if model doesn't support it."""
