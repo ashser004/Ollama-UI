@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QTextEdit, QScrollArea,
                                 QComboBox, QFileDialog, QFrame, QSplitter,
                                 QApplication)
-from PySide6.QtCore import Qt, Signal, Slot, QTimer
+from PySide6.QtCore import Qt, Signal, Slot, QTimer, QStandardPaths
 from PySide6.QtGui import QFont, QCursor, QKeyEvent
 
 from app.theme import COLORS, accent_button_style
@@ -282,15 +282,17 @@ class ChatView(QWidget):
         # Image attachment button
         self._clip_btn = QPushButton("📎")
         self._clip_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        self._clip_btn.setFixedSize(36, 36)
+        self._clip_btn.setFixedSize(38, 38)
         self._clip_btn.setToolTip("Attach up to 5 images")
         self._clip_btn.setStyleSheet(f"""
             QPushButton {{
-                background: {COLORS.bg_surface};
+                background: {COLORS.bg_elevated};
                 color: {COLORS.text_primary};
-                border: 1px solid {COLORS.border_default};
-                border-radius: 18px;
-                font-size: 16px;
+                border: 1px solid {COLORS.border_hover};
+                border-radius: 19px;
+                padding: 0px;
+                font-size: 18px;
+                font-weight: 700;
             }}
             QPushButton:hover {{ background: {COLORS.bg_hover}; border-color: {COLORS.accent_primary}; }}
         """)
@@ -320,9 +322,9 @@ class ChatView(QWidget):
         input_layout.addWidget(self._send_btn)
 
         # Stop button (hidden by default)
-        self._stop_btn = QPushButton("⬛")
+        self._stop_btn = QPushButton("STOP")
         self._stop_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        self._stop_btn.setFixedSize(44, 44)
+        self._stop_btn.setFixedSize(72, 44)
         self._stop_btn.setVisible(False)
         self._stop_btn.setToolTip("Stop generating")
         self._stop_btn.setStyleSheet(f"""
@@ -331,9 +333,11 @@ class ChatView(QWidget):
                 color: {COLORS.text_on_accent};
                 border: none;
                 border-radius: 22px;
-                font-size: 14px;
+                font-size: 11px;
+                font-weight: 800;
+                padding: 0 12px;
             }}
-            QPushButton:hover {{ background: #ef4444; }}
+            QPushButton:hover {{ background: #f87171; }}
         """)
         self._stop_btn.clicked.connect(self._stop_generation)
         input_layout.addWidget(self._stop_btn)
@@ -777,10 +781,11 @@ class ChatView(QWidget):
             self._show_toast("You can attach up to 5 images per message.", "warning")
             return
 
+        start_dir = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation) or os.path.expanduser("~")
         paths, _ = QFileDialog.getOpenFileNames(
             self,
             "Select Images",
-            "",
+            start_dir,
             "Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp *.tif *.tiff)",
         )
         if not paths:

@@ -170,14 +170,14 @@ class ModelCard(QWidget):
 
             open_btn = QPushButton("Chat")
             open_btn.setCursor(Qt.PointingHandCursor)
-            open_btn.setFixedHeight(32)
+            open_btn.setFixedSize(88, 34)
             open_btn.setStyleSheet(accent_button_style())
             open_btn.clicked.connect(lambda: self.open_requested.emit(self._model))
             action_layout.addWidget(open_btn)
 
             del_btn = QPushButton("Delete")
             del_btn.setCursor(Qt.PointingHandCursor)
-            del_btn.setFixedHeight(32)
+            del_btn.setFixedSize(88, 34)
             del_btn.setStyleSheet(danger_button_style())
             del_btn.clicked.connect(lambda: self.delete_requested.emit(self._model))
             action_layout.addWidget(del_btn)

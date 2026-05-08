@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, Signal
 from app.theme import COLORS, accent_button_style, danger_button_style, tag_badge_style, get_tag_color
 from app.ollama.api import OllamaAPI
 from app.ollama.model_catalog import ModelCatalog
-from app.widgets.popup import ConfirmDialog, CacheCleanupDialog
+from app.widgets.popup import ConfirmDialog, CacheCleanupDialog, ToastNotification
 from app import config
 
 
@@ -24,6 +24,7 @@ class ModelManager(QWidget):
         super().__init__(parent)
         self._api = api
         self._catalog = catalog
+        self._delete_confirm_dialog = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 20, 24, 12)
@@ -159,14 +160,14 @@ class ModelManager(QWidget):
             # Actions
             chat_btn = QPushButton("Chat")
             chat_btn.setCursor(Qt.PointingHandCursor)
-            chat_btn.setFixedSize(72, 32)
+            chat_btn.setFixedSize(88, 34)
             chat_btn.setStyleSheet(accent_button_style())
             chat_btn.clicked.connect(lambda checked, n=name: self.open_chat_requested.emit(n))
             row_layout.addWidget(chat_btn)
 
             del_btn = QPushButton("Delete")
             del_btn.setCursor(Qt.PointingHandCursor)
-            del_btn.setFixedSize(72, 32)
+            del_btn.setFixedSize(88, 34)
             del_btn.setStyleSheet(danger_button_style())
             del_btn.clicked.connect(lambda checked, n=name: self._delete_model(n))
             row_layout.addWidget(del_btn)
@@ -176,11 +177,32 @@ class ModelManager(QWidget):
         self._list_layout.addStretch()
 
     def _delete_model(self, name: str):
-        """Delete a model."""
+        """Ask for confirmation before deleting an installed model."""
+        message = (
+            f'Confirm to delete the model "{name}" and clear the storage occupied by it.\n\n'
+            "This will remove the model files from local storage and free up the disk space they use.\n\n"
+            "This action cannot be undone. Select Delete to continue, or Cancel to keep it installed."
+        )
+
+        self._delete_confirm_dialog = ConfirmDialog(
+            title="Confirm Model Deletion",
+            message=message,
+            confirm_text="Delete",
+            on_confirm=lambda n=name: self._perform_delete_model(n),
+            parent=self.window() or self,
+        )
+        self._delete_confirm_dialog.destroyed.connect(lambda *_: setattr(self, "_delete_confirm_dialog", None))
+        self._delete_confirm_dialog.show_centered(self.window() or self)
+
+    def _perform_delete_model(self, name: str):
+        """Delete an installed model after the user confirms."""
         success, msg = self._api.delete_model(name)
         if success:
             self.model_deleted.emit(name)
             self.refresh()
+        else:
+            toast = ToastNotification(f"Failed to delete {name}: {msg}", "error", parent=self.window() or self)
+            toast.show_at(self.window() or self)
 
     def _on_clear_cache_click(self):
         """Show confirmation dialog before clearing cache."""

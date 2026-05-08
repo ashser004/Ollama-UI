@@ -1,7 +1,7 @@
 #define AppName "Local AI(UI)"
 #define AppExeName "LOCAL AI.exe"
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.2.0"
 #endif
 #define AppPublisher "Ashmith Babu P S"
 #define AppURL "https://github.com/ashser004"

@@ -439,16 +439,21 @@ def danger_button_style() -> str:
     c = COLORS
     return f"""
         QPushButton {{
-            background-color: transparent;
-            color: {c.error};
-            border: 1px solid {c.error};
-            border-radius: 8px;
-            padding: 8px 20px;
-            font-weight: 500;
-        }}
-        QPushButton:hover {{
             background-color: {c.error};
             color: {c.text_on_accent};
+            border: 1px solid {c.error};
+            border-radius: 8px;
+            padding: 8px 18px;
+            font-weight: 700;
+            font-size: 13px;
+        }}
+        QPushButton:hover {{
+            background-color: #f87171;
+            border-color: #f87171;
+            color: {c.text_on_accent};
+        }}
+        QPushButton:pressed {{
+            background-color: #dc2626;
         }}
     """
 

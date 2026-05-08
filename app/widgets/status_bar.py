@@ -59,7 +59,7 @@ class StatusBar(QWidget):
         layout.addStretch()
 
         # App version
-        self._version_label = QLabel("v1.0.0")
+        self._version_label = QLabel("v1.2.0")
         self._version_label.setStyleSheet(f"color: {COLORS.text_muted}; font-size: 11px; background: transparent;")
         layout.addWidget(self._version_label)
 

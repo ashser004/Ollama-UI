@@ -66,6 +66,7 @@ class MainWindow(QMainWindow):
 
         # Install confirmation popup
         self._install_confirm_dialog = None
+        self._delete_confirm_dialog = None
 
         # Shutdown state
         self._shutdown_in_progress = False
@@ -476,7 +477,32 @@ class MainWindow(QMainWindow):
         self._show_toast("Cache cleared successfully!", "success")
 
     def _delete_model(self, model: dict):
-        """Delete a model."""
+        """Ask for confirmation before deleting a model."""
+        tag = model.get("tag", "")
+        name = model.get("name", tag)
+
+        if not tag:
+            self._show_toast("This model is missing an Ollama tag.", "error")
+            return
+
+        message = (
+            f'Confirm to delete the model "{name}" and clear the storage occupied by it.\n\n'
+            "This will remove the model files from local storage and free up the disk space they use.\n\n"
+            "This action cannot be undone. Select Delete to continue, or Cancel to keep it installed."
+        )
+
+        self._delete_confirm_dialog = ConfirmDialog(
+            title="Confirm Model Deletion",
+            message=message,
+            confirm_text="Delete",
+            on_confirm=lambda m=model: self._perform_model_delete(m),
+            parent=self,
+        )
+        self._delete_confirm_dialog.destroyed.connect(lambda *_: setattr(self, "_delete_confirm_dialog", None))
+        self._delete_confirm_dialog.show_centered(self)
+
+    def _perform_model_delete(self, model: dict):
+        """Delete a model after the user confirms."""
         tag = model.get("tag", "")
         name = model.get("name", tag)
         success, msg = self._api.delete_model(tag)
