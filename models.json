@@ -1,6 +1,6 @@
 {
-  "version": "1.2.0",
-  "last_updated": "2026-04-09",
+  "version": "1.3.0",
+  "last_updated": "2026-05-09",
   "models": [
     {
       "name": "Tinyllama",
@@ -32,17 +32,6 @@
       "description": "Google's lightweight 2B model. Fast, efficient general-purpose assistant.",
       "capabilities": ["chat", "reasoning"],
       "supports_images": false,
-      "supports_files": false,
-      "context_window": 8192
-    },
-    {
-      "name": "Gemma 3 4B",
-      "tag": "gemma3:4b",
-      "size_gb": 3.3,
-      "min_ram_gb": 6,
-      "description": "Google's 4B multimodal model. Supports text and image inputs.",
-      "capabilities": ["chat", "reasoning", "vision"],
-      "supports_images": true,
       "supports_files": false,
       "context_window": 8192
     },
@@ -216,11 +205,11 @@
       "tag": "llava:7b",
       "size_gb": 4.7,
       "min_ram_gb": 8,
-      "description": "Vision-language model. Describe, analyze, and answer questions about images.",
+      "description": "General-purpose vision and language model for image reasoning.",
       "capabilities": ["chat", "vision"],
       "supports_images": true,
       "supports_files": false,
-      "context_window": 4096
+      "context_window": 32768
     },
     {
       "name": "Moondream 2",
@@ -333,39 +322,6 @@
       "context_window": 128000
     },
     {
-      "name": "Llama 3.2 Vision Latest",
-      "tag": "llama3.2-vision:latest",
-      "size_gb": 7.8,
-      "min_ram_gb": 10,
-      "description": "Meta's multimodal vision model. Excellent image reasoning capabilities.",
-      "capabilities": ["chat", "vision"],
-      "supports_images": true,
-      "supports_files": false,
-      "context_window": 128000
-    },
-    {
-      "name": "Moondream 2 Latest",
-      "tag": "moondream:latest",
-      "size_gb": 1.7,
-      "min_ram_gb": 4,
-      "description": "Tiny vision model for fast image understanding and captioning.",
-      "capabilities": ["vision"],
-      "supports_images": true,
-      "supports_files": false,
-      "context_window": 2048
-    },
-    {
-      "name": "Llava Phi-3 Latest",
-      "tag": "llava-phi3:latest",
-      "size_gb": 2.9,
-      "min_ram_gb": 4,
-      "description": "Small multimodal Llava model fine-tuned from Phi-3 Mini.",
-      "capabilities": ["chat", "vision"],
-      "supports_images": true,
-      "supports_files": false,
-      "context_window": 4096
-    },
-    {
       "name": "Llava Phi-3 3.8B",
       "tag": "llava-phi3:3.8b",
       "size_gb": 2.9,
@@ -399,39 +355,6 @@
       "context_window": 128000
     },
     {
-      "name": "Gemma 3 Latest",
-      "tag": "gemma3:latest",
-      "size_gb": 3.3,
-      "min_ram_gb": 6,
-      "description": "Google's multimodal Gemma 3 model with text and image input.",
-      "capabilities": ["chat", "reasoning", "vision"],
-      "supports_images": true,
-      "supports_files": false,
-      "context_window": 128000
-    },
-    {
-      "name": "Llava 7B Latest",
-      "tag": "llava:latest",
-      "size_gb": 4.7,
-      "min_ram_gb": 8,
-      "description": "General-purpose vision and language model for image reasoning.",
-      "capabilities": ["chat", "vision"],
-      "supports_images": true,
-      "supports_files": false,
-      "context_window": 32768
-    },
-    {
-      "name": "Llava 7B",
-      "tag": "llava:7b",
-      "size_gb": 4.7,
-      "min_ram_gb": 8,
-      "description": "General-purpose vision and language model for image reasoning.",
-      "capabilities": ["chat", "vision"],
-      "supports_images": true,
-      "supports_files": false,
-      "context_window": 32768
-    },
-    {
       "name": "Llava 13B",
       "tag": "llava:13b",
       "size_gb": 8.0,
@@ -443,17 +366,6 @@
       "context_window": 4096
     },
     {
-      "name": "Llava Llama 3 Latest",
-      "tag": "llava-llama3:latest",
-      "size_gb": 5.5,
-      "min_ram_gb": 8,
-      "description": "Llava model fine-tuned from Llama 3 for image and text chat.",
-      "capabilities": ["chat", "vision"],
-      "supports_images": true,
-      "supports_files": false,
-      "context_window": 8192
-    },
-    {
       "name": "Llava Llama 3 8B",
       "tag": "llava-llama3:8b",
       "size_gb": 5.5,
@@ -463,17 +375,6 @@
       "supports_images": true,
       "supports_files": false,
       "context_window": 8192
-    },
-    {
-      "name": "Qwen 2.5 VL Latest",
-      "tag": "qwen2.5vl:latest",
-      "size_gb": 6.0,
-      "min_ram_gb": 8,
-      "description": "Flagship Qwen vision-language model for image reasoning.",
-      "capabilities": ["chat", "vision", "reasoning"],
-      "supports_images": true,
-      "supports_files": false,
-      "context_window": 125000
     },
     {
       "name": "Qwen 2.5 VL 3B",
@@ -496,17 +397,6 @@
       "supports_images": true,
       "supports_files": false,
       "context_window": 125000
-    },
-    {
-      "name": "Qwen 3 VL Latest",
-      "tag": "qwen3-vl:latest",
-      "size_gb": 6.1,
-      "min_ram_gb": 10,
-      "description": "Most capable Qwen vision-language model for multimodal analysis.",
-      "capabilities": ["chat", "vision", "reasoning"],
-      "supports_images": true,
-      "supports_files": false,
-      "context_window": 256000
     },
     {
       "name": "Qwen 3 VL 2B",
