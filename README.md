@@ -1,125 +1,126 @@
-# Local AI(UI)
+# Local AI
 
-A fully offline, portable AI workspace powered by Ollama. Built with PySide6.
+Your fully offline, portable, and private AI workspace powered by Ollama.
 
-> **Everything stays in one folder.** Delete it to remove everything.
+Local AI provides a stunning, seamless interface to download, manage, and chat with the world's most powerful open-source AI models right on your own hardware. 
+Built with a focus on **absolute privacy**, **smart memory management**, and **beautiful design**.
+
+---
 
 ## Features
 
-- 🧠 **Fully Offline** — No cloud, no API keys, complete privacy
-- 📦 **Portable** — Runs from any folder, even a USB drive
-- 🔍 **Model Discovery** — Browse & install 25+ AI models under 10GB
-- 💬 **Chat Interface** — Streaming responses with conversation history
-- 🔀 **Agentic Mode** — Switch models mid-conversation with context management
-- 📷 **Vision Support** — Upload images to compatible models
-- 📊 **System Monitor** — Real-time CPU, RAM, and disk tracking
-- 🎨 **Premium Dark UI** — Gorgeous violet-accented dark theme
+* **Fully Offline & Private** — No cloud, no API keys, and zero data leaves your device.
+* **Smart Context Memory** — Dynamically manages RAM by calculating the perfect conversational budget (up to 16,384 tokens) so the AI never forgets your chat and your PC never crashes.
+* **Portable Workspace** — Runs perfectly from any folder, or even a USB flash drive. Everything stays in one place.
+* **Live Model Discovery** — A curated, built-in store to browse and install 30+ highly optimized AI models (Llama 3, DeepSeek, Qwen, Phi-4) that fit your PC's hardware.
+* **Vision & Image Support** — Chat with images using multimodal models like Llava and Llama 3.2 Vision.
+* **Seamless Model Switching** — Change AI models mid-conversation. The app automatically unloads the old model from RAM and passes your entire chat history to the new one.
+* **Real-Time System Monitor** — Keep an eye on your CPU, RAM, and Disk usage directly inside the app.
 
-## Quick Start
+---
 
-### 1. Create virtual environment
+## How It Works
+
+Local AI is essentially a beautiful, intelligent wrapper around the powerful **Ollama** engine.
+
+Instead of typing commands in a terminal:
+1. You browse the **Discover** tab to find an AI model that fits your hardware (indicated by color-coded RAM tags).
+2. You click install, and the app downloads it directly to your portable folder.
+3. You start chatting. The app automatically translates your chat history into strict JSON payloads, perfectly formatting them for the AI to understand.
+
+This means:
+* No terminal commands required.
+* Professional-grade memory management (just like ChatGPT or Claude).
+* Fast, native performance built on Python and PySide6.
+
+---
+
+## Installation
+
+### Option 1 – Windows Installer (Recommended)
+
+1. Go to the **Releases** section of this repository.
+2. Download `LOCAL AI Setup.exe`.
+3. Run the installer and follow the prompts.
+4. Launch the app and choose where you want your portable AI folder to live.
+
+---
+
+### Option 2 – Build From Source
+
+Requirements:
+* Python 3.11+
+* Git
+
+Steps:
+
 ```bash
+git clone https://github.com/ashser004/Ollama-UI.git
+cd Ollama-UI
 python -m venv .venv
 
 # Windows
 .venv\Scripts\activate
-
 # macOS / Linux
 source .venv/bin/activate
-```
 
-### 2. Install dependencies
-```bash
 pip install -r requirements.txt
-```
-
-### 3. Run the app
-```bash
 python main.py
 ```
 
-### 4. First launch
-1. Choose a storage directory (where AIUI folder will be created)
-2. Click "Install Ollama" — downloaded and set up automatically
-3. Browse and install models
-4. Start chatting!
+---
 
-## Project Structure
+## Usage Guide
 
-```
-LOCALAIUI/
-├── main.py                 # Entry point
-├── models.json             # AI model catalog
-├── requirements.txt        # Python dependencies
-├── app/
-│   ├── config.py           # Configuration & paths
-│   ├── database.py         # SQLite chat storage
-│   ├── theme.py            # Dark theme & styling
-│   ├── ollama/
-│   │   ├── manager.py      # Ollama binary lifecycle
-│   │   ├── api.py          # REST API wrapper
-│   │   └── model_catalog.py # Model catalog management
-│   ├── services/
-│   │   ├── system_monitor.py   # CPU/RAM/Disk monitoring
-│   │   └── download_manager.py # Resumable downloads
-│   ├── widgets/            # Reusable UI components
-│   └── pages/              # Application pages
-└── assets/icons/           # SVG icons (future)
-```
+### 1. Initial Setup
+On your first launch, select a storage directory. The app will automatically download and configure the Ollama engine inside this folder.
 
-## Maintaining `models.json`
+### 2. Discover Models
+Navigate to the **Discover** tab. You will see a curated list of models. 
+* Models are automatically filtered based on your computer's available RAM.
+* Click **Install** on a model (like `gemma3:4b` or `phi4-mini`) to download it.
 
-The `models.json` file is the catalog of available models. To add new models:
+### 3. Start Chatting
+Go to the **Chat** tab, select your downloaded model from the dropdown, and say hello!
+You can attach up to 5 images if you are using a Vision-capable model.
 
-1. Open `models.json`
-2. Add a new entry to the `models` array:
-```json
-{
-  "name": "Display Name",
-  "tag": "ollama-tag-name",
-  "size_gb": 4.5,
-  "min_ram_gb": 8,
-  "description": "Short description of the model.",
-  "capabilities": ["chat", "coding", "reasoning"],
-  "supports_images": false,
-  "supports_files": false,
-  "context_window": 8192
-}
-```
-3. Increment the `version` field
-4. Update `last_updated` date
+### 4. Manage Your System
+Keep an eye on the bottom status bar or the Logs page to see your real-time RAM usage and background download progress.
 
-### Fields Reference
-| Field | Description |
-|-------|-------------|
-| `name` | Display name shown in the UI |
-| `tag` | Exact Ollama tag for `ollama pull <tag>` |
-| `size_gb` | Download size in GB |
-| `min_ram_gb` | Minimum RAM needed to run the model |
-| `description` | 1-2 line description |
-| `capabilities` | Array of: `chat`, `coding`, `reasoning`, `vision`, `math`, `embedding` |
-| `supports_images` | `true` if model accepts image inputs |
-| `supports_files` | `true` if model accepts file uploads |
-| `context_window` | Token context window size |
+---
 
-### Future: GitHub-hosted catalog
-Later, push `models.json` to your GitHub repo. Update `config.py` to fetch from:
-```
-https://raw.githubusercontent.com/ashser004/LOCALAIUI/main/models.json
-```
+## Technical Highlights
 
-## Windows Releases
+Local AI was built to solve the common issues found in other AI GUIs:
+* **No "Default 4K Squeeze"**: Unlike basic CLI tools that forget conversations quickly, Local AI actively expands the context window up to 16,384 tokens depending on the model's capacity.
+* **Graceful Unloading**: Switching models triggers a `keep_alive: 0` command, instantly freeing up your RAM before loading the next AI.
+* **Tail-Read Logging**: The built-in log viewer is highly optimized, reading only the last 500 lines to prevent UI freezing, even during massive installation processes.
 
-Tag pushes that start with `v` now trigger the Windows release workflow. The workflow builds the app directly from `main.py` with PyInstaller, converts `app/icon/icon-ui.png` into an installer `.ico` with Pillow, compiles the Inno Setup installer, and uploads `LOCAL AI Setup.exe` plus a SHA-256 checksum to the GitHub Releases page.
+---
 
-Before tagging a release, bump `APP_VERSION` in `app/config.py` so the About dialog, installer metadata, and Git tag all stay aligned.
+## Contributing
 
-Release assets are produced only from tag pushes, so pushing normal branch commits will not publish a release.
+Contributions are welcome! 
+If you want to add new models to the catalog, you can edit the `models.json` file. Please ensure any added model has accurate `min_ram_gb` and `context_window` limits verified from the official Ollama library.
+
+You can:
+* Report bugs
+* Suggest UI improvements
+* Submit pull requests
+
+---
 
 ## Developer
 
-**Ashmith Babu P S** — [github.com/ashser004](https://github.com/ashser004)
+Developed and maintained by **Ashmith Babu P S** 
+* GitHub: [ashser004](https://github.com/ashser004)
+* A passion project focused on making local AI accessible, private, and beautifully designed.
+
+---
 
 ## License
 
-MIT
+Local AI is licensed under the **MIT License**.
+See the LICENSE file for full terms.
+
+© 2026 Ashmith
