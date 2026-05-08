@@ -4,8 +4,8 @@ status_bar.py — Bottom status bar showing system resources.
 
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QFrame
 from PySide6.QtCore import Qt, Slot
-
 from app.theme import COLORS
+from app import config
 
 
 class StatusBar(QWidget):
@@ -59,7 +59,7 @@ class StatusBar(QWidget):
         layout.addStretch()
 
         # App version
-        self._version_label = QLabel("v1.2.0")
+        self._version_label = QLabel(f"v{config.APP_VERSION}")
         self._version_label.setStyleSheet(f"color: {COLORS.text_muted}; font-size: 11px; background: transparent;")
         layout.addWidget(self._version_label)
 

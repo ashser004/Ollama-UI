@@ -17,6 +17,7 @@ OLLAMA_DEFAULT_HOST = "127.0.0.1"
 OLLAMA_DEFAULT_PORT = 11434
 OLLAMA_ZIP_FILENAME = "ollama-windows-amd64.zip"
 OLLAMA_RELEASES_API = "https://api.github.com/repos/ollama/ollama/releases/latest"
+APP_RELEASES_API = "https://api.github.com/repos/ashser004/Ollama-UI/releases/latest"
 MIN_DISK_FOR_MODELS_GB = 10
 MIN_DISK_FOR_SETUP_GB = 2
 
@@ -81,6 +82,7 @@ def set_aiui_base_dir(parent_dir: str) -> str:
         os.path.join(aiui_path, "models"),
         os.path.join(aiui_path, "data"),
         os.path.join(aiui_path, "logs"),
+        os.path.join(aiui_path, "updates"),
     ]
     for d in dirs:
         os.makedirs(d, exist_ok=True)
@@ -130,6 +132,11 @@ def get_logs_dir() -> str | None:
 def get_error_log_path() -> str | None:
     d = get_logs_dir()
     return os.path.join(d, "errors.txt") if d else None
+
+
+def get_updates_dir() -> str | None:
+    base = get_aiui_base_dir()
+    return os.path.join(base, "updates") if base else None
 
 
 def get_app_config_path() -> str | None:

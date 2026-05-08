@@ -158,6 +158,7 @@ class MainWindow(QMainWindow):
 
         # About
         self._about_page = AboutPage()
+        self._about_page.toast_requested.connect(self._show_toast)
         self._pages.addWidget(self._about_page)
 
         # Page map for navigation
@@ -201,6 +202,16 @@ class MainWindow(QMainWindow):
         """Switch to the main app interface."""
         # Initialize database
         db.init_db()
+
+        # Clean up old update files
+        updates_dir = config.get_updates_dir()
+        if updates_dir and os.path.exists(updates_dir):
+            for file in os.listdir(updates_dir):
+                if file.endswith(".exe"):
+                    try:
+                        os.remove(os.path.join(updates_dir, file))
+                    except Exception:
+                        pass
 
         # Clean up any partial downloads from previous interrupted sessions
         self._ollama_manager.cleanup_partial_downloads()

@@ -185,7 +185,7 @@ class Sidebar(QWidget):
         ("💬", "Chat", "chat"),
         ("⚙", "Manage", "manage"),
         ("≡", "Logs", "logs"),
-        ("ℹ", "About", "about"),
+        ("ℹ", "About/Update", "about"),
     ]
 
     def __init__(self, parent=None):
