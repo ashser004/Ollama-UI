@@ -3,7 +3,9 @@ chat_view.py — Main chat interface widget.
 """
 
 import os
+import io
 import base64
+from PIL import Image
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QTextEdit, QScrollArea,
                                 QComboBox, QFileDialog, QFrame, QSplitter,
@@ -671,11 +673,39 @@ class ChatView(QWidget):
         overlay.show_for_parent(self.window())
 
     def _encode_attachment_images(self, image_paths: list[str]) -> list[str]:
-        """Convert selected attachment file paths into base64 strings for Ollama."""
+        """Convert selected attachment file paths into optimized base64 strings for Ollama."""
         encoded_images: list[str] = []
+        MAX_SIZE = 800
+
         for image_path in image_paths:
-            with open(image_path, "rb") as file_handle:
-                encoded_images.append(base64.b64encode(file_handle.read()).decode("utf-8"))
+            try:
+                with Image.open(image_path) as img:
+                    # Convert GIF or specialized formats to standard RGB
+                    if img.mode != "RGB":
+                        img = img.convert("RGB")
+
+                    # Calculate aspect ratio and resize if needed
+                    width, height = img.size
+                    if max(width, height) > MAX_SIZE:
+                        if width > height:
+                            new_width = MAX_SIZE
+                            new_height = int(MAX_SIZE * (height / width))
+                        else:
+                            new_height = MAX_SIZE
+                            new_width = int(MAX_SIZE * (width / height))
+                        
+                        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+                    # Save optimized image to a temporary RAM buffer
+                    buffer = io.BytesIO()
+                    img.save(buffer, format="PNG", optimize=True)
+                    buffer.seek(0)
+
+                    # Convert the RAM buffer to base64
+                    encoded_images.append(base64.b64encode(buffer.read()).decode("utf-8"))
+            except Exception as e:
+                print(f"Failed to process image {image_path}: {e}")
+                
         return encoded_images
 
     def _on_model_changed(self, model_name: str):
@@ -786,7 +816,7 @@ class ChatView(QWidget):
             self,
             "Select Images",
             start_dir,
-            "Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp *.tif *.tiff)",
+            "Images (*.jpg *.jpeg *.png *.ico *.gif)",
         )
         if not paths:
             return
