@@ -236,6 +236,15 @@ class UpdateCard(QWidget):
         if self._downloaded_exe_path and os.path.exists(self._downloaded_exe_path):
             try:
                 os.startfile(self._downloaded_exe_path)
+                
+                # Force the app to close so the installer can safely overwrite files
+                import sys
+                from PySide6.QtWidgets import QApplication
+                app = QApplication.instance()
+                if app:
+                    app.quit()
+                sys.exit(0)
+                
             except Exception as e:
                 self.toast_requested.emit(f"Failed to launch installer: {e}", "error")
         else:
