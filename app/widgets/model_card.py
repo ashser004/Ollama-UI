@@ -265,8 +265,8 @@ class ModelCard(QWidget):
             self._install_btn.clicked.connect(self._on_resume_click)
         self.pause_requested.emit(self._model)
 
-    @Slot(int, int, str)
-    def update_progress(self, completed: int, total: int, status: str):
+    @Slot(float, float, str)
+    def update_progress(self, completed: float, total: float, status: str):
         """Update download progress."""
         self._is_downloading = True
         self._is_paused = False

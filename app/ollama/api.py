@@ -57,7 +57,7 @@ class _StreamWorker(QThread):
 
 class _PullWorker(QThread):
     """Worker thread for model pull with progress."""
-    progress = Signal(int, int, str)  # completed, total, status
+    progress = Signal(float, float, str)  # completed, total, status
     finished_signal = Signal(bool, str)  # success, message
 
     def __init__(self, url, model_name, parent=None):
