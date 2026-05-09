@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Ashmith
+# Licensed under the MIT License. See LICENSE in the project root for license information.
 """
 model_manager.py — Installed model management view with Clear Cache.
 """

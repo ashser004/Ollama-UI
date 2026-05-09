@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Ashmith
+# Licensed under the MIT License. See LICENSE in the project root for license information.
 """
 about_page.py — About page wrapper and updates view.
 """

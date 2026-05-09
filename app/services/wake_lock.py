@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Ashmith
+# Licensed under the MIT License. See LICENSE in the project root for license information.
 """
 wake_lock.py — Prevent Windows from sleeping or turning off the display.
 

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Ashmith
+# Licensed under the MIT License. See LICENSE in the project root for license information.
 """
 update_manager.py — Background workers for checking and downloading app updates.
 """

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Ashmith
+# Licensed under the MIT License. See LICENSE in the project root for license information.
 """
 model_catalog.py — Load, filter, and manage the models.json catalog.
 

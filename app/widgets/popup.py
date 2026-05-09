@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Ashmith
+# Licensed under the MIT License. See LICENSE in the project root for license information.
 """
 popup.py — Reusable popup / toast notifications, shutdown dialog, cache cleanup dialog.
 """
