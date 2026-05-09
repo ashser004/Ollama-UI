@@ -565,6 +565,9 @@ class ChatView(QWidget):
         self._msg_list.insertWidget(self._msg_list.count() - 1, self._current_bubble)
         self._scroll_to_bottom()
 
+        # Start the loading animation (image-aware)
+        self._current_bubble.start_loading(has_images=bool(attachment_images))
+
         # Start stream
         images_b64 = attachment_images if attachment_images else None
         self._clear_attachments()
@@ -581,8 +584,9 @@ class ChatView(QWidget):
     def _on_chunk(self, text: str):
         """Handle incoming text chunk from stream."""
         self._current_response += text
-        # Update bubble content
+        # Stop loading animation on the very first chunk
         if self._current_bubble:
+            self._current_bubble.stop_loading()
             self._current_bubble.set_content(self._current_response, show_cursor=True)
         self._scroll_to_bottom()
 
@@ -592,6 +596,10 @@ class ChatView(QWidget):
         self._is_streaming = False
         self._send_btn.setVisible(True)
         self._stop_btn.setVisible(False)
+
+        # Always stop loading animation
+        if self._current_bubble:
+            self._current_bubble.stop_loading()
 
         if success and self._current_response:
             # Save assistant message
