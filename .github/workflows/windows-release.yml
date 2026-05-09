@@ -40,7 +40,7 @@ jobs:
       - name: Build LOCAL AI app
         shell: cmd
         run: |
-          python -m PyInstaller --onefile --windowed --clean --noconfirm --name "LOCAL AI" --icon "build\installer\LOCAL AI.ico" --add-data "models.json;." --add-data "app\icon;app\icon" main.py
+          python -m PyInstaller --onedir --windowed --clean --noconfirm --name "LOCAL AI" --icon "build\installer\LOCAL AI.ico" --add-data "models.json;." --add-data "app\icon;app\icon" main.py
 
       - name: Install Inno Setup
         shell: cmd

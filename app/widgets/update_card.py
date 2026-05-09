@@ -233,19 +233,47 @@ class UpdateCard(QWidget):
 
     # --- Install Phase ---
     def _start_install(self):
-        if self._downloaded_exe_path and os.path.exists(self._downloaded_exe_path):
-            try:
-                os.startfile(self._downloaded_exe_path)
-                
-                # Force the app to close so the installer can safely overwrite files
-                import sys
-                from PySide6.QtWidgets import QApplication
-                app = QApplication.instance()
-                if app:
-                    app.quit()
-                sys.exit(0)
-                
-            except Exception as e:
-                self.toast_requested.emit(f"Failed to launch installer: {e}", "error")
-        else:
+        if not self._downloaded_exe_path or not os.path.exists(self._downloaded_exe_path):
             self.toast_requested.emit("Installer file not found.", "error")
+            return
+
+        try:
+            import subprocess
+            import sys
+
+            # Launch installer as a FULLY DETACHED process so it has
+            # zero dependency on our process tree.  This is critical:
+            # when our app exits, Python / PyInstaller clean-up must
+            # not interfere with the running installer.
+            CREATE_NEW_PROCESS_GROUP = 0x00000200
+            DETACHED_PROCESS = 0x00000008
+
+            subprocess.Popen(
+                [self._downloaded_exe_path],
+                creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+                close_fds=True,
+            )
+
+            # Show feedback so the user knows the app is closing intentionally
+            self._status_label.setText("Closing app to install update...")
+            self._action_btn.setEnabled(False)
+            self._action_btn.setText("Installing...")
+
+            # Delay exit by 1 second — gives the installer process time
+            # to fully start before our cleanup runs.
+            QTimer.singleShot(1000, self._exit_for_update)
+
+        except Exception as e:
+            self.toast_requested.emit(f"Failed to launch installer: {e}", "error")
+
+    @staticmethod
+    def _exit_for_update():
+        """Gracefully shut down the app so the installer can overwrite files."""
+        import sys
+        from PySide6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        if app:
+            app.quit()
+        sys.exit(0)
+

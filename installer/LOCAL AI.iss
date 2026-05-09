@@ -1,7 +1,7 @@
 #define AppName "Local AI(UI)"
 #define AppExeName "LOCAL AI.exe"
 #ifndef AppVersion
-  #define AppVersion "1.3.2"
+  #define AppVersion "1.3.3"
 #endif
 #define AppPublisher "Ashmith Babu P S"
 #define AppURL "https://github.com/ashser004"
@@ -32,12 +32,14 @@ ArchitecturesInstallIn64BitMode=x64
 LicenseFile=..\LICENSE
 VersionInfoVersion={#AppVersion}.0
 VersionInfoTextVersion={#AppVersion}
+CloseApplications=yes
+RestartApplications=no
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"; Flags: unchecked
 
 [Files]
-Source: "..\dist\LOCAL AI.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\LOCAL AI\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\LOCAL AI"; Filename: "{app}\{#AppExeName}"
