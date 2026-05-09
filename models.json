@@ -1,13 +1,13 @@
 {
   "version": "1.6.0",
-  "last_updated": "2026-05-09",
+  "last_updated": "2026-05-10",
   "models": [
     {
       "name": "Tinyllama",
       "tag": "tinyllama",
       "size_gb": 0.638,
       "min_ram_gb": 2,
-      "description": "Compact 1.1B model. Great for testing and quick Q&A on very low-end hardware.",
+      "description": "Ultra-compact 1.1B model. Great for testing and quick Q&A on very low-end hardware.",
       "capabilities": [
         "chat"
       ],
@@ -18,7 +18,7 @@
     {
       "name": "SmolLM2 1.7B",
       "tag": "smollm2:1.7b",
-      "size_gb": 1.0,
+      "size_gb": 1.8,
       "min_ram_gb": 2,
       "description": "Compact 1.7B model by HuggingFace. Better quality than TinyLlama for edge devices.",
       "capabilities": [
@@ -33,20 +33,20 @@
       "tag": "gemma3:1b",
       "size_gb": 0.815,
       "min_ram_gb": 2,
-      "description": "Google's smallest Gemma 3 model. Surprisingly capable for its tiny size.",
+      "description": "Google's smallest Gemma 3 model. Surprisingly capable for its tiny size with a 32K context window.",
       "capabilities": [
         "chat"
       ],
       "supports_images": false,
       "supports_files": false,
-      "context_window": 32000
+      "context_window": 32768
     },
     {
       "name": "Llama 3.2 1B",
       "tag": "llama3.2:1b",
       "size_gb": 1.3,
       "min_ram_gb": 2,
-      "description": "Meta's ultra-light 1B model. Fast responses, good for basic tasks.",
+      "description": "Meta's ultra-light 1B model. Fast responses with a generous 128K context window.",
       "capabilities": [
         "chat"
       ],
@@ -96,23 +96,9 @@
       "context_window": 128000
     },
     {
-      "name": "Qwen 2.5 3B",
-      "tag": "qwen2.5:3b",
-      "size_gb": 1.9,
-      "min_ram_gb": 4,
-      "description": "Alibaba's multilingual 3B model. Strong coding and conversation. Best non-English support at this size.",
-      "capabilities": [
-        "chat",
-        "coding"
-      ],
-      "supports_images": false,
-      "supports_files": false,
-      "context_window": 32768
-    },
-    {
       "name": "Qwen 3 1.7B",
       "tag": "qwen3:1.7b",
-      "size_gb": 1.1,
+      "size_gb": 1.4,
       "min_ram_gb": 4,
       "description": "Latest-gen Qwen with hybrid thinking mode. Impressive reasoning for its tiny size.",
       "capabilities": [
@@ -121,14 +107,14 @@
       ],
       "supports_images": false,
       "supports_files": false,
-      "context_window": 32768
+      "context_window": 40960
     },
     {
       "name": "Phi-3 Mini",
       "tag": "phi3:mini",
       "size_gb": 2.2,
       "min_ram_gb": 4,
-      "description": "Microsoft's 3.8B model. Strong reasoning and coding for its size. 128K context is exceptional at 4GB RAM.",
+      "description": "Microsoft's 3.8B model. Strong reasoning and coding for its size with a 128K context window.",
       "capabilities": [
         "chat",
         "coding",
@@ -143,7 +129,7 @@
       "tag": "phi4-mini",
       "size_gb": 2.5,
       "min_ram_gb": 4,
-      "description": "Microsoft's Phi-4-mini. Matches Llama 3.1 8B on MMLU using 40% less RAM. Supports function calling and math.",
+      "description": "Microsoft's Phi-4-mini. Matches Llama 3.1 8B on MMLU benchmarks. Supports function calling and math.",
       "capabilities": [
         "chat",
         "reasoning",
@@ -172,7 +158,7 @@
       "tag": "deepseek-r1:1.5b",
       "size_gb": 1.1,
       "min_ram_gb": 4,
-      "description": "Distilled reasoning model with visible chain-of-thought thinking. Best reasoning model under 4GB RAM.",
+      "description": "Distilled reasoning model with visible chain-of-thought thinking. Highly capable reasoning for its size.",
       "capabilities": [
         "reasoning",
         "math"
@@ -227,7 +213,7 @@
       "tag": "qwen3-vl:2b",
       "size_gb": 1.9,
       "min_ram_gb": 4,
-      "description": "Compact Qwen vision-language model. Solid image understanding with an impressive 256K context.",
+      "description": "Compact Qwen vision-language model. Solid image understanding with an impressive 256K context window.",
       "capabilities": [
         "chat",
         "vision",
@@ -242,7 +228,7 @@
       "tag": "qwen2.5vl:3b",
       "size_gb": 3.2,
       "min_ram_gb": 4,
-      "description": "Compact Qwen vision-language model. Strong image understanding and reasoning at 4GB RAM.",
+      "description": "Qwen's proven vision-language model. Strong image understanding and reasoning with a 128K context window.",
       "capabilities": [
         "chat",
         "vision",
@@ -250,14 +236,14 @@
       ],
       "supports_images": true,
       "supports_files": false,
-      "context_window": 125000
+      "context_window": 128000
     },
     {
       "name": "Llava Phi-3 3.8B",
       "tag": "llava-phi3:3.8b",
       "size_gb": 2.9,
       "min_ram_gb": 4,
-      "description": "Lightweight multimodal model fine-tuned from Phi-3 Mini. Good image+text chat on just 4GB RAM.",
+      "description": "Lightweight multimodal model fine-tuned from Phi-3 Mini. Good capability for both image and text chat.",
       "capabilities": [
         "chat",
         "vision"
@@ -271,7 +257,7 @@
       "tag": "qwen3:4b",
       "size_gb": 2.5,
       "min_ram_gb": 6,
-      "description": "Latest Qwen 4B with hybrid thinking mode. Punches well above its size \u2014 rivals older 7B models on reasoning and code.",
+      "description": "Latest Qwen 4B with hybrid thinking mode. Rivals older 7B models on reasoning and code with a massive 256K context.",
       "capabilities": [
         "chat",
         "coding",
@@ -279,7 +265,7 @@
       ],
       "supports_images": false,
       "supports_files": false,
-      "context_window": 40960
+      "context_window": 262144
     },
     {
       "name": "Gemma 3 4B",
@@ -301,7 +287,7 @@
       "tag": "qwen3-vl:4b",
       "size_gb": 3.3,
       "min_ram_gb": 6,
-      "description": "Balanced Qwen vision-language model. Best vision+reasoning combo at the 6GB RAM tier.",
+      "description": "Balanced Qwen vision-language model. Excellent combination of vision and reasoning capabilities.",
       "capabilities": [
         "chat",
         "vision",
@@ -316,7 +302,7 @@
       "tag": "minicpm-v",
       "size_gb": 5.0,
       "min_ram_gb": 6,
-      "description": "Tsinghua's compact vision-language model. Exceptional at reading text in images (OCR), charts, and detailed image analysis. Different strength from Qwen VL and Gemma vision models.",
+      "description": "Exceptional at reading text in images (OCR) and detailed chart analysis. Different strength from Qwen VL.",
       "capabilities": [
         "chat",
         "vision"
@@ -330,7 +316,7 @@
       "tag": "nemotron-mini:4b",
       "size_gb": 2.7,
       "min_ram_gb": 4,
-      "description": "NVIDIA's 4B instruction model. Strong personality, natural conversation flow, and solid reasoning. Great all-round chat model for everyday use.",
+      "description": "NVIDIA's 4B instruction model. Strong personality, natural conversation flow, and solid reasoning.",
       "capabilities": [
         "chat",
         "reasoning"
