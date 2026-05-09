@@ -288,6 +288,13 @@ class ModelDiscovery(QWidget):
             installed_tags.append(base)
             installed_tags.append(name)
 
+        # Also check installed image-gen models
+        from app.services.imagegen_download import is_imagegen_model_installed
+        for cat_model in self._catalog.get_imagegen_models():
+            tag = cat_model.get("tag", "")
+            if tag and is_imagegen_model_installed(tag):
+                installed_tags.append(tag)
+
         # Filter models
         ram_total = self._monitor.get_available_ram_gb()
         models = self._catalog.filter_models(

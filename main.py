@@ -129,6 +129,7 @@ class MainWindow(QMainWindow):
         self._home_page.navigate_to.connect(self._navigate)
         self._home_page.open_chat.connect(self._open_chat_model)
         self._home_page.open_chat_conv.connect(self._open_chat_conv)
+        self._home_page.imagegen_toggled.connect(self._on_imagegen_toggled)
         self._pages.addWidget(self._home_page)
 
         # Discover
@@ -145,6 +146,7 @@ class MainWindow(QMainWindow):
         self._chat_page = ChatPage(self._api, self._catalog)
         self._chat_page.back_requested.connect(lambda: self._navigate("home"))
         self._chat_page.navigate_to_discover.connect(lambda: self._navigate("discover"))
+        self._chat_page.navigate_to_home.connect(lambda: self._navigate("home"))
         self._pages.addWidget(self._chat_page)
 
         # Manage
@@ -236,6 +238,10 @@ class MainWindow(QMainWindow):
 
         # Acquire wake lock — keep screen on while app is running
         wake_lock.acquire()
+
+        # Clean up any orphan image-gen output files from previous runs
+        from app.imagegen.manager import ImageGenManager
+        ImageGenManager.cleanup_output_dir()
 
         # Navigate to home
         self._pages.setCurrentWidget(self._home_page)
@@ -331,6 +337,13 @@ class MainWindow(QMainWindow):
 
     def _show_install_confirmation(self, model: dict):
         """Show a confirmation dialog before starting a model pull."""
+        from app.ollama.model_catalog import ModelCatalog
+
+        # Check if this is an image-gen model
+        if ModelCatalog.get_engine(model) == "sd-cli":
+            self._install_imagegen_model(model)
+            return
+
         name = model.get("name", model.get("tag", "Unknown model"))
         size_gb = float(model.get("size_gb", 0) or 0)
 
@@ -488,6 +501,75 @@ class MainWindow(QMainWindow):
         save_download_states(self._download_states)
         self._sync_discover_page_state(refresh=self._pages.currentWidget() == self._discover_page)
         self._show_toast("Cache cleared successfully!", "success")
+
+    # ─── Image Generation Model Install ──────────────────────
+
+    def _install_imagegen_model(self, model: dict):
+        """Download an image-gen model GGUF from HuggingFace."""
+        from app.services.imagegen_download import ImageGenModelDownloadWorker, is_imagegen_model_installed
+
+        tag = model.get("tag", "")
+        name = model.get("name", tag)
+
+        if is_imagegen_model_installed(tag):
+            self._show_toast(f"{name} is already downloaded", "info")
+            return
+
+        if tag in self._active_pulls:
+            self._show_toast(f"{name} is already downloading", "info")
+            return
+
+        # Size check
+        size_gb = model.get("size_gb", 0)
+        can_install, reason = self._monitor.can_install_model(size_gb, model.get("min_ram_gb", 0))
+        if not can_install:
+            self._show_toast(reason, "error")
+            return
+
+        self._show_toast(f"Downloading {name}...", "info")
+
+        worker = ImageGenModelDownloadWorker(model)
+        self._active_pulls[tag] = worker
+
+        card = self._discover_page.get_card_by_tag(tag)
+        if card:
+            worker.progress.connect(card.update_progress)
+            worker.finished_signal.connect(card.install_finished)
+            card.set_downloading()
+
+        worker.progress.connect(
+            lambda c, t, s, _tag=tag: self._on_pull_progress(_tag, c, t, s)
+        )
+        worker.finished_signal.connect(
+            lambda success, msg: self._on_imagegen_model_installed(success, msg, model)
+        )
+        worker.start()
+
+    def _on_imagegen_model_installed(self, success: bool, message: str, model: dict):
+        """Handle image-gen model download completion."""
+        tag = model.get("tag", "")
+        name = model.get("name", tag)
+
+        self._active_pulls.pop(tag, None)
+        self._progress_cache.pop(tag, None)
+
+        if success:
+            self._show_toast(f"{name} downloaded! Enable Image Generation on Home to use it.", "success")
+        else:
+            if "Cancelled" not in message:
+                self._show_toast(f"Failed to download {name}: {message}", "error")
+
+        self._sync_discover_page_state(refresh=True)
+
+    # ─── Image Generation Toggle ─────────────────────────
+
+    def _on_imagegen_toggled(self, enabled: bool):
+        """Handle image generation toggle from home page."""
+        self._chat_page.set_imagegen_enabled(enabled)
+        if enabled:
+            self._show_toast("Image generation engine enabled", "success")
+        else:
+            self._show_toast("Image generation engine disabled", "info")
 
     def _delete_model(self, model: dict):
         """Ask for confirmation before deleting a model."""
@@ -735,6 +817,10 @@ class MainWindow(QMainWindow):
 
         # Stop anything still running
         self._monitor.stop()
+
+        # Clean up image generation output files
+        from app.imagegen.manager import ImageGenManager
+        ImageGenManager.cleanup_output_dir()
 
         # Close shutdown dialog if it exists
         if hasattr(self, '_shutdown_dialog') and self._shutdown_dialog:

@@ -324,6 +324,51 @@
       "supports_images": false,
       "supports_files": false,
       "context_window": 4096
+    },
+    {
+      "name": "Realistic Vision V6",
+      "tag": "realistic-vision-v6",
+      "size_gb": 1.8,
+      "min_ram_gb": 4,
+      "description": "Photorealistic image generation. Best for people, animals, landscapes, and real-world objects.",
+      "capabilities": [
+        "image-gen"
+      ],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 0,
+      "engine": "sd-cli",
+      "download_url": "https://huggingface.co/second-state/Realistic_Vision_V6.0_B1-GGUF/resolve/main/realisticVisionV60B1_v51HyperVAE-Q8_0.gguf"
+    },
+    {
+      "name": "DreamShaper V8",
+      "tag": "dreamshaper-v8",
+      "size_gb": 2.0,
+      "min_ram_gb": 4,
+      "description": "Fantasy art, portraits, and 3D-style renders. Versatile creative model with rich detail.",
+      "capabilities": [
+        "image-gen"
+      ],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 0,
+      "engine": "sd-cli",
+      "download_url": "https://huggingface.co/second-state/DreamShaper-8-GGUF/resolve/main/dreamshaper-8-Q8_0.gguf"
+    },
+    {
+      "name": "Anything V5",
+      "tag": "anything-v5",
+      "size_gb": 1.6,
+      "min_ram_gb": 4,
+      "description": "Anime, illustration, and cartoon-style images. High-quality with clean line art.",
+      "capabilities": [
+        "image-gen"
+      ],
+      "supports_images": false,
+      "supports_files": false,
+      "context_window": 0,
+      "engine": "sd-cli",
+      "download_url": "https://huggingface.co/second-state/Anything-V5-GGUF/resolve/main/anything-v5-Q8_0.gguf"
     }
   ]
 }

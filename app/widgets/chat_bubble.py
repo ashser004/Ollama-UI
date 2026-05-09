@@ -35,6 +35,19 @@ _IMAGE_PHRASES = [
     "Analyzing the image",
     "Inspecting details",
 ]
+
+_IMAGEGEN_PHRASES = [
+    "Generating image",
+    "This may take a few minutes",
+    "Painting your idea",
+    "Creating pixels",
+    "CPU working hard",
+    "Crafting the image",
+    "Almost there, stay patient",
+    "Approx. 3\u20138 min on CPU",
+    "Diffusion in progress",
+    "Rendering your vision",
+]
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -235,12 +248,21 @@ class ChatBubble(QWidget):
 
     # ── Loading animation logic ────────────────────────────────────────────────
 
-    def start_loading(self, has_images: bool = False):
-        """Start the animated loading status text. Call before streaming begins."""
+    def start_loading(self, has_images: bool = False, mode: str = "text"):
+        """Start the animated loading status text. Call before streaming begins.
+        mode: 'text', 'image' (vision), or 'imagegen' (generation)
+        """
         if self._is_user or self._status_label is None:
             return
 
-        pool = _IMAGE_PHRASES if has_images else _TEXT_PHRASES
+        if mode == "imagegen":
+            pool = _IMAGEGEN_PHRASES
+        elif mode == "image" or has_images:
+            pool = _IMAGE_PHRASES
+        else:
+            pool = _TEXT_PHRASES
+
+        self._loading_mode = mode
         self._current_phrase = random.choice(pool)
         self._dot_count = 0
 
@@ -262,12 +284,17 @@ class ChatBubble(QWidget):
 
         # Every full dot cycle (3 ticks), pick a new phrase for variety
         if self._dot_count == 0:
-            pool = _IMAGE_PHRASES if "pixel" in self._current_phrase.lower() \
+            mode = getattr(self, "_loading_mode", "text")
+            if mode == "imagegen":
+                pool = _IMAGEGEN_PHRASES
+            elif mode == "image" or "pixel" in self._current_phrase.lower() \
                                    or "image" in self._current_phrase.lower() \
                                    or "visual" in self._current_phrase.lower() \
                                    or "object" in self._current_phrase.lower() \
-                                   or "detail" in self._current_phrase.lower() \
-                                  else _TEXT_PHRASES
+                                   or "detail" in self._current_phrase.lower():
+                pool = _IMAGE_PHRASES
+            else:
+                pool = _TEXT_PHRASES
             self._current_phrase = random.choice(pool)
 
         dots = "." * (self._dot_count + 1)

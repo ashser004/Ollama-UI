@@ -119,3 +119,18 @@ class ModelCatalog:
             if model.get("name", "").lower() == name.lower():
                 return model.copy()
         return None
+
+    # ─── Engine type helpers ──────────────────────────────────────
+
+    @staticmethod
+    def get_engine(model: dict) -> str:
+        """Return 'ollama' or 'sd-cli' based on model entry."""
+        return model.get("engine", "ollama")
+
+    def get_imagegen_models(self) -> list[dict]:
+        """Return only image-gen models."""
+        return [m for m in self._models if "image-gen" in m.get("capabilities", [])]
+
+    def get_ollama_models(self) -> list[dict]:
+        """Return only Ollama (non-image-gen) models."""
+        return [m for m in self._models if "image-gen" not in m.get("capabilities", [])]

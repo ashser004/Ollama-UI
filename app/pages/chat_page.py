@@ -17,6 +17,7 @@ class ChatPage(QWidget):
 
     back_requested = Signal()
     navigate_to_discover = Signal()
+    navigate_to_home = Signal()
 
     def __init__(self, api: OllamaAPI, catalog: ModelCatalog, parent=None):
         super().__init__(parent)
@@ -27,6 +28,7 @@ class ChatPage(QWidget):
         self._chat_view = ChatView(api, catalog)
         self._chat_view.back_requested.connect(self.back_requested.emit)
         self._chat_view.navigate_to_discover.connect(self.navigate_to_discover.emit)
+        self._chat_view.navigate_to_home.connect(self.navigate_to_home.emit)
         layout.addWidget(self._chat_view)
 
     def load_models(self):
@@ -40,3 +42,7 @@ class ChatPage(QWidget):
 
     def open_conversation(self, conv_id: int):
         self._chat_view.open_conversation(conv_id)
+
+    def set_imagegen_enabled(self, enabled: bool):
+        """Forward image generation toggle state to the ChatView."""
+        self._chat_view.set_imagegen_enabled(enabled)

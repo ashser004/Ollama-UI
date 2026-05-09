@@ -64,6 +64,7 @@ class ChatView(QWidget):
 
     back_requested = Signal()
     navigate_to_discover = Signal()
+    navigate_to_home = Signal()
 
     # Smart context budget caps (tokens) — prevents excessive RAM usage
     # We don't fill the entire context window; we use practical, efficient limits
@@ -79,10 +80,13 @@ class ChatView(QWidget):
         self._conversation_id: int | None = None
         self._current_model: str = ""
         self._is_streaming = False
+        self._is_generating_image = False
         self._current_bubble: ChatBubble | None = None
         self._current_response = ""
         self._attached_images: list[str] = []
         self._image_overlay: ImagePreviewOverlay | None = None
+        self._imagegen_enabled = False
+        self._imagegen_worker = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -408,15 +412,81 @@ class ChatView(QWidget):
 
         overlay_layout.addWidget(empty_card, alignment=Qt.AlignCenter)
 
+        # ═══ Imagegen-not-enabled overlay ═══
+        self._imagegen_overlay = QWidget(self)
+        self._imagegen_overlay.setVisible(False)
+        self._imagegen_overlay.setStyleSheet(f"background-color: {COLORS.bg_base};")
+
+        ig_overlay_layout = QVBoxLayout(self._imagegen_overlay)
+        ig_overlay_layout.setContentsMargins(32, 32, 32, 32)
+        ig_overlay_layout.setAlignment(Qt.AlignCenter)
+
+        ig_card = QWidget()
+        ig_card.setMaximumWidth(420)
+        ig_card.setStyleSheet("background: transparent;")
+
+        ig_card_layout = QVBoxLayout(ig_card)
+        ig_card_layout.setContentsMargins(24, 12, 24, 12)
+        ig_card_layout.setSpacing(12)
+        ig_card_layout.setAlignment(Qt.AlignCenter)
+
+        ig_icon = QLabel("🎨")
+        ig_icon.setAlignment(Qt.AlignCenter)
+        ig_icon.setStyleSheet(f"font-size: 42px; background: transparent;")
+        ig_card_layout.addWidget(ig_icon)
+
+        ig_title = QLabel("Image Generation Engine Not Enabled")
+        ig_title.setAlignment(Qt.AlignCenter)
+        ig_title.setStyleSheet(f"""
+            font-size: 20px; font-weight: 700;
+            color: {COLORS.text_primary}; background: transparent;
+        """)
+        ig_card_layout.addWidget(ig_title)
+
+        ig_divider = QFrame()
+        ig_divider.setFrameShape(QFrame.HLine)
+        ig_divider.setFrameShadow(QFrame.Plain)
+        ig_divider.setFixedHeight(1)
+        ig_divider.setMaximumWidth(240)
+        ig_divider.setStyleSheet(f"background-color: {COLORS.border_default}; border: none;")
+        ig_card_layout.addWidget(ig_divider)
+
+        ig_desc = QLabel("Enable the image generation engine from\nthe Home page to use image models.")
+        ig_desc.setAlignment(Qt.AlignCenter)
+        ig_desc.setWordWrap(True)
+        ig_desc.setStyleSheet(f"color: {COLORS.text_secondary}; font-size: 13px; background: transparent; line-height: 1.5;")
+        ig_card_layout.addWidget(ig_desc)
+
+        ig_card_layout.addSpacing(12)
+
+        go_home_btn = QPushButton("← Go to Home")
+        go_home_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        go_home_btn.setFixedHeight(44)
+        go_home_btn.setStyleSheet(accent_button_style())
+        go_home_btn.clicked.connect(self.navigate_to_home.emit)
+        ig_card_layout.addWidget(go_home_btn)
+
+        ig_overlay_layout.addWidget(ig_card, alignment=Qt.AlignCenter)
+
     def load_models(self):
         """Populate model selector with installed models."""
         self._model_combo.blockSignals(True)
         self._model_combo.clear()
 
+        # Ollama models (always shown)
         models = self._api.list_models()
         for m in models:
             name = m.get("name", "Unknown")
             self._model_combo.addItem(name)
+
+        # Image-gen models (only shown when engine is enabled)
+        if self._imagegen_enabled:
+            from app.services.imagegen_download import is_imagegen_model_installed
+            for cat_model in self._catalog.get_imagegen_models():
+                tag = cat_model.get("tag", "")
+                if tag and is_imagegen_model_installed(tag):
+                    display_name = f"🎨 {cat_model.get('name', tag)}"
+                    self._model_combo.addItem(display_name, tag)
 
         self._model_combo.blockSignals(False)
         self._sync_current_model_selection()
@@ -448,6 +518,7 @@ class ChatView(QWidget):
         """Keep empty overlay sized to fill the widget."""
         super().resizeEvent(event)
         self._empty_overlay.setGeometry(self.rect())
+        self._imagegen_overlay.setGeometry(self.rect())
 
     def open_conversation(self, conv_id: int):
         """Open an existing conversation."""
@@ -502,7 +573,7 @@ class ChatView(QWidget):
 
     def _send_message(self, text: str):
         """Send a message to the AI."""
-        if not text or self._is_streaming:
+        if not text or self._is_streaming or self._is_generating_image:
             return
 
         if self._model_combo.count() == 0:
@@ -510,6 +581,11 @@ class ChatView(QWidget):
 
         if not self._current_model or self._model_combo.findText(self._current_model) < 0:
             self._sync_current_model_selection(self._current_model or None)
+
+        # Check if current model is an image-gen model
+        if self._is_imagegen_model(self._current_model):
+            self._send_to_imagegen(text)
+            return
 
         if self._attached_images and not self._current_model_supports_images():
             self._show_toast(
@@ -582,6 +658,124 @@ class ChatView(QWidget):
         worker.finished_signal.connect(self._on_stream_done)
         worker.start()
 
+    # ─── Image Generation Send Path ─────────────────────────────────
+
+    def _send_to_imagegen(self, prompt: str):
+        """Handle sending a prompt to the image generation engine."""
+        from app.imagegen.manager import ImageGenManager
+        from app.services.imagegen_download import get_model_path_by_tag
+
+        # Resolve model tag from display name
+        model_tag = self._get_imagegen_tag(self._current_model)
+        if not model_tag:
+            self._show_toast("Could not find the image model.", "error")
+            return
+
+        model_path = get_model_path_by_tag(model_tag)
+        if not model_path:
+            self._show_toast("Image model file not found on disk.", "error")
+            return
+
+        # Create conversation if needed
+        if self._conversation_id is None:
+            title = f"🎨 {prompt[:36]}..." if len(prompt) > 36 else f"🎨 {prompt}"
+            self._conversation_id = db.create_conversation(
+                self._current_model, title, False
+            )
+
+        # Save user message
+        db.add_message(
+            self._conversation_id, "user", prompt,
+            model=self._current_model
+        )
+
+        # Add user bubble
+        user_bubble = ChatBubble("user", prompt)
+        self._msg_list.insertWidget(self._msg_list.count() - 1, user_bubble)
+
+        # Create assistant placeholder with imagegen loading animation
+        self._is_generating_image = True
+        self._send_btn.setVisible(False)
+        self._stop_btn.setVisible(True)
+        self._input.clear()
+
+        self._current_bubble = ChatBubble("assistant", "")
+        self._current_bubble.copy_requested.connect(self._copy_text)
+        self._current_bubble.set_content("", show_cursor=False)
+        self._msg_list.insertWidget(self._msg_list.count() - 1, self._current_bubble)
+        self._scroll_to_bottom()
+
+        # Start the imagegen-specific loading animation
+        self._current_bubble.start_loading(mode="imagegen")
+
+        # Spawn the generation worker
+        mgr = ImageGenManager(self)
+        worker = mgr.generate_image(
+            model_path=model_path,
+            prompt=prompt,
+            width=512,
+            height=512,
+            steps=20
+        )
+        worker.finished.connect(self._on_imagegen_done)
+        self._imagegen_worker = worker
+        worker.start()
+
+    @Slot(bool, str)
+    def _on_imagegen_done(self, success: bool, result: str):
+        """Handle image generation completion."""
+        from app.imagegen.manager import ImageGenManager
+
+        self._is_generating_image = False
+        self._send_btn.setVisible(True)
+        self._stop_btn.setVisible(False)
+        self._imagegen_worker = None
+
+        if self._current_bubble:
+            self._current_bubble.stop_loading()
+
+        if success:
+            # Convert PNG to base64 and clean up temp file
+            b64 = ImageGenManager.png_to_base64(result, max_size=512)
+            if b64:
+                # Save assistant message with generated image
+                db.add_message(
+                    self._conversation_id, "assistant",
+                    "Here is your generated image:",
+                    model=self._current_model,
+                    images=[b64]
+                )
+
+                # Update the bubble to show the image
+                if self._current_bubble:
+                    self._current_bubble.set_content("Here is your generated image:", show_cursor=False)
+                    self._current_bubble.set_model_label(self._current_model)
+                    # We need to rebuild the bubble to show the image
+                    # Simplest approach: remove placeholder, add a proper bubble
+                    idx = self._msg_list.indexOf(self._current_bubble)
+                    if idx >= 0:
+                        self._current_bubble.deleteLater()
+                        new_bubble = ChatBubble(
+                            "assistant", "Here is your generated image:",
+                            model=self._current_model, images=[b64]
+                        )
+                        new_bubble.copy_requested.connect(self._copy_text)
+                        self._msg_list.insertWidget(idx, new_bubble)
+            else:
+                if self._current_bubble:
+                    self._current_bubble.set_content("Failed to process the generated image.", show_cursor=False)
+        else:
+            if self._current_bubble:
+                error_msg = f"Image generation failed: {result}" if "cancel" not in result.lower() else "Image generation was cancelled."
+                self._current_bubble.set_content(error_msg, show_cursor=False)
+                content_label = self._current_bubble._content_label
+                if content_label:
+                    content_label.setStyleSheet(f"color: {COLORS.error}; font-size: 13px; background: transparent;")
+
+        self._current_bubble = None
+        self._refresh_history()
+        self._scroll_to_bottom()
+
     @Slot(str)
     def _on_chunk(self, text: str):
         """Handle incoming text chunk from stream."""
@@ -627,8 +821,11 @@ class ChatView(QWidget):
         self._refresh_history()
 
     def _stop_generation(self):
-        """Stop the current streaming response."""
-        self._api.stop_chat()
+        """Stop the current streaming response or image generation."""
+        if self._is_generating_image and self._imagegen_worker:
+            self._imagegen_worker.abort()
+        else:
+            self._api.stop_chat()
 
     def _scroll_to_bottom(self):
         """Scroll message area to bottom."""
@@ -728,8 +925,14 @@ class ChatView(QWidget):
             old_model = self._current_model
             self._current_model = model_name
 
+            # Abort any active image generation when switching models
+            if self._is_generating_image and self._imagegen_worker:
+                self._imagegen_worker.abort()
+                self._is_generating_image = False
+
             # Unload old model from RAM if switching to a different one
-            if old_model and old_model != model_name:
+            # (only for Ollama models, not imagegen)
+            if old_model and old_model != model_name and not self._is_imagegen_model(old_model):
                 self._api.unload_model(old_model)
 
             # Update conversation record so it tracks the active model
@@ -737,6 +940,12 @@ class ChatView(QWidget):
                 db.update_conversation_model(self._conversation_id, model_name)
 
             self._update_input_capabilities()
+
+            # Hide imagegen overlay when switching to a non-imagegen model
+            if self._is_imagegen_model(model_name) and not self._imagegen_enabled:
+                self._imagegen_overlay.setVisible(True)
+            else:
+                self._imagegen_overlay.setVisible(False)
 
     # ── Smart Context Helpers ──────────────────────────
 
@@ -799,6 +1008,15 @@ class ChatView(QWidget):
     def _update_input_capabilities(self):
         """Show/hide image and file buttons based on model capabilities."""
         if self._current_model:
+            # Image-gen models: hide clip button, change placeholder
+            if self._is_imagegen_model(self._current_model):
+                self._clip_btn.setVisible(False)
+                self._input.setPlaceholderText("Describe the image you want to generate...")
+                return
+
+            # Restore default placeholder for Ollama models
+            self._input.setPlaceholderText("Type your message...")
+
             base = self._current_model.split(":")[0]
             info = self._catalog.get_model_by_tag(base) or self._catalog.get_model_by_tag(self._current_model)
             if info:
@@ -806,6 +1024,61 @@ class ChatView(QWidget):
                 return
 
         self._clip_btn.setVisible(False)
+        self._input.setPlaceholderText("Type your message...")
+
+    # ─── Image Generation Helpers ──────────────────────────────────
+
+    def _is_imagegen_model(self, model_name: str) -> bool:
+        """Check if a model name corresponds to an image-gen model."""
+        if not model_name:
+            return False
+        # Strip the 🎨 prefix if present
+        clean_name = model_name.replace("🎨 ", "").strip()
+        for cat_model in self._catalog.get_imagegen_models():
+            if cat_model.get("name") == clean_name or cat_model.get("tag") == clean_name:
+                return True
+        return False
+
+    def _get_imagegen_tag(self, model_name: str) -> str | None:
+        """Get the catalog tag for an image-gen model from its display name."""
+        if not model_name:
+            return None
+        clean_name = model_name.replace("🎨 ", "").strip()
+        for cat_model in self._catalog.get_imagegen_models():
+            if cat_model.get("name") == clean_name or cat_model.get("tag") == clean_name:
+                return cat_model.get("tag")
+        # Check combo box data (we store tag as userData)
+        idx = self._model_combo.findText(model_name)
+        if idx >= 0:
+            data = self._model_combo.itemData(idx)
+            if data:
+                return data
+        return None
+
+    def set_imagegen_enabled(self, enabled: bool):
+        """Called by MainWindow when the home toggle changes."""
+        self._imagegen_enabled = enabled
+
+        if not enabled:
+            # If currently using an imagegen model, switch away
+            if self._is_imagegen_model(self._current_model):
+                # Abort any active generation
+                if self._is_generating_image and self._imagegen_worker:
+                    self._imagegen_worker.abort()
+                    self._is_generating_image = False
+
+                # Switch to first Ollama model
+                if self._model_combo.count() > 0:
+                    for i in range(self._model_combo.count()):
+                        name = self._model_combo.itemText(i)
+                        if not self._is_imagegen_model(name):
+                            self._model_combo.setCurrentIndex(i)
+                            break
+
+            self._imagegen_overlay.setVisible(False)
+
+        # Reload models to add/remove imagegen models from selector
+        self.load_models()
 
     def _attach_image(self):
         """Open a multi-select image picker and queue up to five images."""
@@ -846,6 +1119,14 @@ class ChatView(QWidget):
 
         if len(paths) > len(accepted_paths):
             self._show_toast("Only the first five selected images were attached.", "warning")
+
+    def _show_toast(self, message: str, toast_type: str = "info"):
+        """Show a toast notification via the parent window."""
+        from app.widgets.popup import ToastNotification
+        parent_window = self.window()
+        if parent_window and parent_window.isVisible():
+            toast = ToastNotification(message, toast_type, parent=parent_window)
+            toast.show_at(parent_window)
 
     def _attach_file(self):
         """Open file picker — shows popup if model doesn't support it."""

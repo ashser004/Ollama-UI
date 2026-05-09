@@ -68,6 +68,7 @@ class Colors:
     tag_vision: str = "#f472b6"
     tag_math: str = "#a78bfa"
     tag_embedding: str = "#94a3b8"
+    tag_imagegen: str = "#fb923c"
 
 
 COLORS = Colors()
@@ -81,6 +82,7 @@ TAG_COLORS = {
     "vision": COLORS.tag_vision,
     "math": COLORS.tag_math,
     "embedding": COLORS.tag_embedding,
+    "image-gen": COLORS.tag_imagegen,
 }
 
 

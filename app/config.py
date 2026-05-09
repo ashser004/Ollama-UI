@@ -20,6 +20,7 @@ OLLAMA_DEFAULT_PORT = 11434
 OLLAMA_ZIP_FILENAME = "ollama-windows-amd64.zip"
 OLLAMA_RELEASES_API = "https://api.github.com/repos/ollama/ollama/releases/latest"
 APP_RELEASES_API = "https://api.github.com/repos/ashser004/Ollama-UI/releases/latest"
+SD_CPP_RELEASES_API = "https://api.github.com/repos/leejet/stable-diffusion.cpp/releases/latest"
 MIN_DISK_FOR_MODELS_GB = 10
 MIN_DISK_FOR_SETUP_GB = 2
 
@@ -85,6 +86,9 @@ def set_aiui_base_dir(parent_dir: str) -> str:
         os.path.join(aiui_path, "data"),
         os.path.join(aiui_path, "logs"),
         os.path.join(aiui_path, "updates"),
+        os.path.join(aiui_path, "imagegen"),
+        os.path.join(aiui_path, "imagegen", "models"),
+        os.path.join(aiui_path, "imagegen", "output"),
     ]
     for d in dirs:
         os.makedirs(d, exist_ok=True)
@@ -171,4 +175,32 @@ def save_app_config(config: dict):
 def is_ollama_installed() -> bool:
     """Check if Ollama binary exists in AIUI/ollama/."""
     exe = get_ollama_exe()
+    return exe is not None and os.path.isfile(exe)
+
+
+# ─── Image generation sub-paths ───────────────────────────────
+
+def get_imagegen_dir() -> str | None:
+    base = get_aiui_base_dir()
+    return os.path.join(base, "imagegen") if base else None
+
+
+def get_imagegen_engine_exe() -> str | None:
+    d = get_imagegen_dir()
+    return os.path.join(d, "sd-cli.exe") if d else None
+
+
+def get_imagegen_models_dir() -> str | None:
+    d = get_imagegen_dir()
+    return os.path.join(d, "models") if d else None
+
+
+def get_imagegen_output_dir() -> str | None:
+    d = get_imagegen_dir()
+    return os.path.join(d, "output") if d else None
+
+
+def is_imagegen_installed() -> bool:
+    """Check if sd-cli binary exists in AIUI/imagegen/."""
+    exe = get_imagegen_engine_exe()
     return exe is not None and os.path.isfile(exe)

@@ -81,32 +81,92 @@ class HomePage(QWidget):
     navigate_to = Signal(str)  # page key
     open_chat = Signal(str)  # model name
     open_chat_conv = Signal(int)  # conversation id
+    imagegen_toggled = Signal(bool)  # True = enabled
 
     def __init__(self, api: OllamaAPI, monitor: SystemMonitor, parent=None):
         super().__init__(parent)
         self._api = api
         self._monitor = monitor
+        self._imagegen_enabled = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 16)
         layout.setSpacing(20)
 
-        # Welcome header
-        header = QVBoxLayout()
-        header.setSpacing(4)
+        # Welcome header row (greeting left, imagegen toggle right)
+        header_row = QHBoxLayout()
+        header_row.setSpacing(16)
+
+        # Left: greeting
+        greeting_col = QVBoxLayout()
+        greeting_col.setSpacing(4)
 
         greeting = QLabel("Welcome back")
         greeting.setStyleSheet(f"""
             font-size: 32px; font-weight: 900;
             color: {COLORS.text_primary}; background: transparent;
         """)
-        header.addWidget(greeting)
+        greeting_col.addWidget(greeting)
 
         subtitle = QLabel("Your offline AI workspace is ready")
         subtitle.setStyleSheet(f"font-size: 14px; color: {COLORS.text_secondary}; background: transparent;")
-        header.addWidget(subtitle)
+        greeting_col.addWidget(subtitle)
 
-        layout.addLayout(header)
+        header_row.addLayout(greeting_col)
+        header_row.addStretch()
+
+        # Right: Image Generation toggle
+        toggle_card = QFrame()
+        toggle_card.setObjectName("imagegenToggleCard")
+        toggle_card.setFixedSize(260, 64)
+        toggle_card.setStyleSheet(f"""
+            QFrame#imagegenToggleCard {{
+                background-color: {COLORS.bg_elevated};
+                border: 1px solid {COLORS.border_default};
+                border-radius: 14px;
+            }}
+            QFrame#imagegenToggleCard:hover {{
+                border-color: {COLORS.tag_imagegen}55;
+            }}
+        """)
+
+        toggle_layout = QHBoxLayout(toggle_card)
+        toggle_layout.setContentsMargins(14, 8, 14, 8)
+        toggle_layout.setSpacing(10)
+
+        # Icon + labels
+        toggle_info = QVBoxLayout()
+        toggle_info.setSpacing(2)
+
+        toggle_title = QLabel("🎨 Image Generation")
+        toggle_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {COLORS.text_primary}; background: transparent;")
+        toggle_info.addWidget(toggle_title)
+
+        self._imagegen_status = QLabel("Disabled")
+        self._imagegen_status.setStyleSheet(f"font-size: 10px; color: {COLORS.text_muted}; background: transparent;")
+        toggle_info.addWidget(self._imagegen_status)
+
+        # Download progress (hidden by default)
+        self._imagegen_progress = QLabel("")
+        self._imagegen_progress.setStyleSheet(f"font-size: 10px; color: {COLORS.accent_primary}; background: transparent;")
+        self._imagegen_progress.setVisible(False)
+        toggle_info.addWidget(self._imagegen_progress)
+
+        toggle_layout.addLayout(toggle_info, 1)
+
+        # Toggle switch button (styled as a pill)
+        self._imagegen_toggle_btn = QPushButton()
+        self._imagegen_toggle_btn.setFixedSize(48, 26)
+        self._imagegen_toggle_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        self._imagegen_toggle_btn.setCheckable(True)
+        self._imagegen_toggle_btn.setChecked(False)
+        self._update_toggle_style(False)
+        self._imagegen_toggle_btn.clicked.connect(self._on_imagegen_toggle)
+        toggle_layout.addWidget(self._imagegen_toggle_btn)
+
+        header_row.addWidget(toggle_card)
+
+        layout.addLayout(header_row)
 
         # Stats row
         stats_grid = QGridLayout()
@@ -382,3 +442,144 @@ class HomePage(QWidget):
             """)
             row.clicked.connect(lambda checked, cid=conv["id"]: self.open_chat_conv.emit(cid))
             self._recent_container.addWidget(row)
+
+    # ─── Image Generation Toggle ──────────────────────────────────
+
+    def _update_toggle_style(self, enabled: bool):
+        """Update the toggle button to look like a pill switch."""
+        if enabled:
+            self._imagegen_toggle_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                        stop:0 {COLORS.tag_imagegen}, stop:1 #f97316);
+                    border: none;
+                    border-radius: 13px;
+                    font-size: 9px;
+                    font-weight: 800;
+                    color: white;
+                    padding-left: 25px;
+                }}
+            """)
+            self._imagegen_toggle_btn.setText("ON")
+        else:
+            self._imagegen_toggle_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {COLORS.bg_hover};
+                    border: 1px solid {COLORS.border_default};
+                    border-radius: 13px;
+                    font-size: 9px;
+                    font-weight: 800;
+                    color: {COLORS.text_muted};
+                    padding-right: 22px;
+                }}
+            """)
+            self._imagegen_toggle_btn.setText("OFF")
+
+    def _on_imagegen_toggle(self):
+        """Handle the toggle click."""
+        from app import config as cfg
+        is_now_checked = self._imagegen_toggle_btn.isChecked()
+
+        if is_now_checked:
+            # First-time: need to download engine
+            if not cfg.is_imagegen_installed():
+                self._imagegen_toggle_btn.setChecked(False)  # keep off until download finishes
+                self._start_engine_download()
+                return
+
+            # Engine already installed — just enable
+            self._imagegen_enabled = True
+            self._update_toggle_style(True)
+            self._imagegen_status.setText("Enabled")
+            self._imagegen_status.setStyleSheet(f"font-size: 10px; color: {COLORS.success}; background: transparent;")
+            self.imagegen_toggled.emit(True)
+        else:
+            # Disable
+            self._imagegen_enabled = False
+            self._update_toggle_style(False)
+            self._imagegen_status.setText("Disabled")
+            self._imagegen_status.setStyleSheet(f"font-size: 10px; color: {COLORS.text_muted}; background: transparent;")
+            self.imagegen_toggled.emit(False)
+
+    def _start_engine_download(self):
+        """Download the sd-cli engine binary for the first time."""
+        from app.imagegen.manager import ImageGenManager
+        from app.widgets.popup import ConfirmDialog
+
+        # Show warning dialog first
+        msg = (
+            "⚠️ Image generation on CPU is slow.\n\n"
+            "A 512×512 image typically takes 3–8 minutes on a modern CPU.\n"
+            "If your PC has an NVIDIA GPU, it will be used automatically.\n\n"
+            "This will download a small engine binary (~8 MB).\n\n"
+            "Continue?"
+        )
+
+        self._engine_confirm = ConfirmDialog(
+            title="Enable Image Generation",
+            message=msg,
+            confirm_text="Download & Enable",
+            on_confirm=self._do_engine_download,
+            parent=self.window(),
+        )
+        self._engine_confirm.show_centered(self.window())
+
+    def _do_engine_download(self):
+        """Actually start the engine download after confirmation."""
+        from app.imagegen.manager import ImageGenManager
+
+        self._imagegen_status.setText("Downloading engine...")
+        self._imagegen_status.setStyleSheet(f"font-size: 10px; color: {COLORS.accent_primary}; background: transparent;")
+        self._imagegen_progress.setVisible(True)
+        self._imagegen_toggle_btn.setEnabled(False)
+
+        mgr = ImageGenManager(self)
+        self._engine_dl_worker = mgr.download_engine()
+        self._engine_dl_worker.progress.connect(self._on_engine_dl_progress)
+        self._engine_dl_worker.finished.connect(self._on_engine_dl_finished)
+        self._engine_dl_worker.start()
+
+    def _on_engine_dl_progress(self, downloaded: int, total: int):
+        """Update engine download progress."""
+        if total > 0:
+            pct = int(downloaded / total * 100)
+            mb_done = downloaded / (1024 * 1024)
+            mb_total = total / (1024 * 1024)
+            self._imagegen_progress.setText(f"{mb_done:.1f} / {mb_total:.1f} MB ({pct}%)")
+        else:
+            mb_done = downloaded / (1024 * 1024)
+            self._imagegen_progress.setText(f"{mb_done:.1f} MB downloaded")
+
+    def _on_engine_dl_finished(self, success: bool, message: str):
+        """Handle engine download completion."""
+        self._imagegen_progress.setVisible(False)
+        self._imagegen_toggle_btn.setEnabled(True)
+
+        if success:
+            self._imagegen_enabled = True
+            self._imagegen_toggle_btn.setChecked(True)
+            self._update_toggle_style(True)
+            self._imagegen_status.setText("Enabled")
+            self._imagegen_status.setStyleSheet(f"font-size: 10px; color: {COLORS.success}; background: transparent;")
+            self.imagegen_toggled.emit(True)
+        else:
+            self._imagegen_toggle_btn.setChecked(False)
+            self._update_toggle_style(False)
+            self._imagegen_status.setText("Download failed")
+            self._imagegen_status.setStyleSheet(f"font-size: 10px; color: {COLORS.error}; background: transparent;")
+
+    @property
+    def is_imagegen_enabled(self) -> bool:
+        return self._imagegen_enabled
+
+    def set_imagegen_enabled(self, enabled: bool):
+        """Programmatically set the toggle state (e.g. on app startup = always OFF)."""
+        self._imagegen_enabled = enabled
+        self._imagegen_toggle_btn.setChecked(enabled)
+        self._update_toggle_style(enabled)
+        if enabled:
+            self._imagegen_status.setText("Enabled")
+            self._imagegen_status.setStyleSheet(f"font-size: 10px; color: {COLORS.success}; background: transparent;")
+        else:
+            self._imagegen_status.setText("Disabled")
+            self._imagegen_status.setStyleSheet(f"font-size: 10px; color: {COLORS.text_muted}; background: transparent;")
