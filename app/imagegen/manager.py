@@ -236,16 +236,18 @@ class ImageGenWorker(QThread):
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
 
-            # Wait for completion
-            self._process.wait()
+            # Use communicate() instead of wait() to avoid pipe deadlock.
+            # sd-cli writes progress/CUDA info to stdout/stderr — if pipes
+            # fill up (4-8KB on Windows), both sd-cli and wait() block forever.
+            stdout_data, stderr_data = self._process.communicate()
 
             if self._abort:
                 self.finished.emit(False, "Generation cancelled.")
                 return
 
             if self._process.returncode != 0:
-                stderr_out = self._process.stderr.read().decode(errors="replace") if self._process.stderr else ""
-                self.finished.emit(False, f"Generation failed (code {self._process.returncode}): {stderr_out[:200]}")
+                stderr_out = stderr_data.decode(errors="replace") if stderr_data else ""
+                self.finished.emit(False, f"Generation failed (code {self._process.returncode}): {stderr_out[:300]}")
                 return
 
             if os.path.isfile(self._output_path):
