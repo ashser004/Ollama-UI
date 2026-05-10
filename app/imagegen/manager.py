@@ -199,7 +199,13 @@ class ImageGenWorker(QThread):
             self.finished.emit(False, "Image generation engine not found.")
             return
 
-        # Build command
+        # The engine directory contains the exe AND companion DLLs
+        # (including CUDA runtime DLLs if GPU build was installed).
+        # We set cwd + prepend PATH so all DLLs are found at load time.
+        engine_dir = os.path.dirname(exe)
+
+        # Build command — CUDA is automatic if the CUDA build was
+        # downloaded (no --cuda flag exists; GPU is used at compile level)
         cmd = [
             exe,
             "-m", self._model_path,
@@ -210,20 +216,23 @@ class ImageGenWorker(QThread):
             "--steps", str(self._steps),
         ]
 
-        # Use CUDA if NVIDIA GPU is available
-        if _has_nvidia_gpu():
-            cmd.extend(["--cuda"])
-
-        # Set thread count for CPU
+        # Set thread count for CPU (also used as fallback in CUDA builds)
         cpu_count = os.cpu_count() or 4
         threads = max(1, cpu_count - 1)  # Leave one core free for the UI
         cmd.extend(["-t", str(threads)])
+
+        # Prepare environment: prepend engine dir to PATH so CUDA DLLs
+        # (cudart64_12.dll, cublas64_12.dll, etc.) are found
+        env = os.environ.copy()
+        env["PATH"] = engine_dir + os.pathsep + env.get("PATH", "")
 
         try:
             self._process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                cwd=engine_dir,
+                env=env,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
 
