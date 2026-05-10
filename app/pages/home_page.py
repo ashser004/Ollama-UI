@@ -423,7 +423,8 @@ class HomePage(QWidget):
         try:
             from app.services.imagegen_download import is_imagegen_model_installed
             from app.ollama.model_catalog import ModelCatalog
-            for cat_model in self._catalog.get_imagegen_models():
+            _catalog = ModelCatalog()
+            for cat_model in _catalog.get_imagegen_models():
                 tag = cat_model.get("tag", "")
                 if tag and is_imagegen_model_installed(tag):
                     imagegen_count += 1

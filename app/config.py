@@ -12,7 +12,7 @@ import os
 import sys
 
 APP_NAME = "Local AI(UI)"
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.4.5"
 DEVELOPER = "Ashmith Babu P S"
 DEVELOPER_GITHUB = "https://github.com/ashser004"
 OLLAMA_DEFAULT_HOST = "127.0.0.1"

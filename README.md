@@ -16,6 +16,7 @@ Built with a focus on **absolute privacy**, **smart memory management**, and **b
 * **Vision & Image Support** — Chat with images using multimodal models like Llava and Llama 3.2 Vision.
 * **Seamless Model Switching** — Change AI models mid-conversation. The app automatically unloads the old model from RAM and passes your entire chat history to the new one.
 * **Real-Time System Monitor** — Keep an eye on your CPU, RAM, and Disk usage directly inside the app.
+* **GPU-Accelerated Image Generation** — Generate images from text prompts entirely on-device using Stable Diffusion. Automatically detects your NVIDIA GPU and downloads the CUDA-enabled engine for fast generation, or falls back to a lightweight CPU build.
 
 ---
 
@@ -27,6 +28,7 @@ Instead of typing commands in a terminal:
 1. You browse the **Discover** tab to find an AI model that fits your hardware (indicated by color-coded RAM tags).
 2. You click install, and the app downloads it directly to your portable folder.
 3. You start chatting. The app automatically translates your chat history into strict JSON payloads, perfectly formatting them for the AI to understand.
+4. For image generation, select an image model and describe what you want — the engine handles everything offline.
 
 This means:
 * No terminal commands required.
@@ -84,8 +86,11 @@ Navigate to the **Discover** tab. You will see a curated list of models.
 Go to the **Chat** tab, select your downloaded model from the dropdown, and say hello!
 You can attach up to 5 images if you are using a Vision-capable model.
 
-### 4. Manage Your System
-Keep an eye on the bottom status bar or the Logs page to see your real-time RAM usage and background download progress.
+### 4. Generate Images
+Enable **Image Generation** from the home dashboard. Install an image model from **Discover**, then select it in Chat and describe the image you want.
+
+### 5. Manage Your System
+Keep an eye on the bottom status bar or the Logs page to see your real-time RAM usage and background download progress. You can also manage installed models, including image models, from the **Manage** tab.
 
 ---
 
@@ -95,6 +100,8 @@ Local AI was built to solve the common issues found in other AI GUIs:
 * **No "Default 4K Squeeze"**: Unlike basic CLI tools that forget conversations quickly, Local AI actively expands the context window up to 16,384 tokens depending on the model's capacity.
 * **Graceful Unloading**: Switching models triggers a `keep_alive: 0` command, instantly freeing up your RAM before loading the next AI.
 * **Tail-Read Logging**: The built-in log viewer is highly optimized, reading only the last 500 lines to prevent UI freezing, even during massive installation processes.
+* **Hardware-Aware Image Engine**: At download time, `nvidia-smi` is queried to detect NVIDIA GPUs. GPU systems receive the CUDA-enabled binary and runtime DLLs; CPU-only systems receive a small AVX2 build.
+* **Pipe-Safe Subprocess Design**: The image generation subprocess uses `communicate()` instead of `wait()`, preventing the Windows pipe buffer deadlock that causes generation to hang after loading.
 
 ---
 
