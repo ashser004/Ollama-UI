@@ -504,6 +504,24 @@ class ChatView(QWidget):
 
         target_model = preferred_model or self._current_model
         index = self._model_combo.findText(target_model) if target_model else -1
+
+        # Fallback: match against combo userData (imagegen tags are stored there)
+        # or try the 🎨-prefixed display name from the catalog
+        if index < 0 and target_model:
+            for i in range(self._model_combo.count()):
+                if self._model_combo.itemData(i) == target_model:
+                    index = i
+                    break
+            if index < 0:
+                # Try matching catalog display name with emoji prefix
+                for cat_model in self._catalog.get_imagegen_models():
+                    if cat_model.get("tag") == target_model or cat_model.get("name") == target_model:
+                        prefixed = f"🎨 {cat_model.get('name', '')}"
+                        idx2 = self._model_combo.findText(prefixed)
+                        if idx2 >= 0:
+                            index = idx2
+                            break
+
         if index < 0:
             index = 0
 
@@ -706,7 +724,9 @@ class ChatView(QWidget):
         self._scroll_to_bottom()
 
         # Start the imagegen-specific loading animation
-        self._current_bubble.start_loading(mode="imagegen")
+        from app.imagegen.manager import _has_nvidia_gpu
+        ig_mode = "imagegen_gpu" if _has_nvidia_gpu() else "imagegen"
+        self._current_bubble.start_loading(mode=ig_mode)
 
         # Spawn the generation worker
         mgr = ImageGenManager(self)

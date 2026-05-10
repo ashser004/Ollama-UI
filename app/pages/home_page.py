@@ -418,7 +418,18 @@ class HomePage(QWidget):
         """Update dashboard data."""
         # Models count
         models = self._api.list_models()
-        self._models_stat.set_value(str(len(models)))
+        # Also count installed imagegen models
+        imagegen_count = 0
+        try:
+            from app.services.imagegen_download import is_imagegen_model_installed
+            from app.ollama.model_catalog import ModelCatalog
+            for cat_model in self._catalog.get_imagegen_models():
+                tag = cat_model.get("tag", "")
+                if tag and is_imagegen_model_installed(tag):
+                    imagegen_count += 1
+        except Exception:
+            pass
+        self._models_stat.set_value(str(len(models) + imagegen_count))
 
         # Conversations count
         try:
@@ -537,14 +548,24 @@ class HomePage(QWidget):
         from app.imagegen.manager import ImageGenManager
         from app.widgets.popup import ConfirmDialog
 
-        # Show warning dialog first
-        msg = (
-            "⚠️ Image generation on CPU is slow.\n\n"
-            "A 512×512 image typically takes 3–8 minutes on a modern CPU.\n"
-            "If your PC has an NVIDIA GPU, it will be used automatically.\n\n"
-            "This will download a small engine binary (~8 MB).\n\n"
-            "Continue?"
-        )
+        from app.imagegen.manager import _has_nvidia_gpu
+
+        # Show hardware-specific confirmation
+        if _has_nvidia_gpu():
+            msg = (
+                "🚀 NVIDIA GPU detected!\n\n"
+                "Image generation will use CUDA acceleration (~5–30 seconds per image).\n\n"
+                "This requires a one-time download of the CUDA engine\n"
+                "and runtime libraries (~850 MB total).\n\n"
+                "Continue?"
+            )
+        else:
+            msg = (
+                "⚠️ No NVIDIA GPU detected — CPU mode.\n\n"
+                "A 512×512 image typically takes 3–8 minutes on CPU.\n\n"
+                "This will download a small engine binary (~8 MB).\n\n"
+                "Continue?"
+            )
 
         self._engine_confirm = ConfirmDialog(
             title="Enable Image Generation",

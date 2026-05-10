@@ -36,7 +36,7 @@ _IMAGE_PHRASES = [
     "Inspecting details",
 ]
 
-_IMAGEGEN_PHRASES = [
+_IMAGEGEN_CPU_PHRASES = [
     "Generating image",
     "This may take a few minutes",
     "Painting your idea",
@@ -47,6 +47,19 @@ _IMAGEGEN_PHRASES = [
     "Approx. 3\u20138 min on CPU",
     "Diffusion in progress",
     "Rendering your vision",
+]
+
+_IMAGEGEN_GPU_PHRASES = [
+    "GPU accelerating",
+    "CUDA cores at work",
+    "Painting your idea",
+    "~5\u201330 seconds on GPU",
+    "Rendering at full speed",
+    "Generating image",
+    "Diffusion in progress",
+    "Crafting the image",
+    "Almost done",
+    "Creating your vision",
 ]
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -255,8 +268,10 @@ class ChatBubble(QWidget):
         if self._is_user or self._status_label is None:
             return
 
-        if mode == "imagegen":
-            pool = _IMAGEGEN_PHRASES
+        if mode == "imagegen_gpu":
+            pool = _IMAGEGEN_GPU_PHRASES
+        elif mode == "imagegen":
+            pool = _IMAGEGEN_CPU_PHRASES
         elif mode == "image" or has_images:
             pool = _IMAGE_PHRASES
         else:
@@ -285,8 +300,10 @@ class ChatBubble(QWidget):
         # Every full dot cycle (3 ticks), pick a new phrase for variety
         if self._dot_count == 0:
             mode = getattr(self, "_loading_mode", "text")
-            if mode == "imagegen":
-                pool = _IMAGEGEN_PHRASES
+            if mode == "imagegen_gpu":
+                pool = _IMAGEGEN_GPU_PHRASES
+            elif mode == "imagegen":
+                pool = _IMAGEGEN_CPU_PHRASES
             elif mode == "image" or "pixel" in self._current_phrase.lower() \
                                    or "image" in self._current_phrase.lower() \
                                    or "visual" in self._current_phrase.lower() \

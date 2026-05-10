@@ -101,7 +101,15 @@ class ModelManager(QWidget):
 
         models = self._api.list_models()
 
-        if not models:
+        # Also gather installed imagegen models
+        from app.services.imagegen_download import is_imagegen_model_installed, get_model_path_by_tag
+        imagegen_models = []
+        for cat_model in self._catalog.get_imagegen_models():
+            tag = cat_model.get("tag", "")
+            if tag and is_imagegen_model_installed(tag):
+                imagegen_models.append(cat_model)
+
+        if not models and not imagegen_models:
             empty = QLabel("No models installed yet.\nHead to Discover to find and install models.")
             empty.setAlignment(Qt.AlignCenter)
             empty.setStyleSheet(f"color: {COLORS.text_muted}; font-size: 14px; padding: 60px; background: transparent;")
@@ -176,6 +184,71 @@ class ModelManager(QWidget):
 
             self._list_layout.addWidget(row)
 
+        # ── Imagegen models ──
+        for cat_model in imagegen_models:
+            tag = cat_model.get("tag", "")
+            model_path = get_model_path_by_tag(tag)
+            size_gb = cat_model.get("size_gb", 0)
+
+            row = QFrame()
+            row.setFixedHeight(72)
+            row.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {COLORS.bg_surface};
+                    border: 1px solid {COLORS.border_default};
+                    border-radius: 12px;
+                }}
+                QFrame:hover {{
+                    border-color: {COLORS.border_hover};
+                }}
+            """)
+
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(18, 10, 18, 10)
+
+            info_layout = QVBoxLayout()
+            info_layout.setSpacing(2)
+
+            name_label = QLabel(f"🎨 {cat_model.get('name', tag)}")
+            name_label.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {COLORS.text_primary}; background: transparent;")
+            info_layout.addWidget(name_label)
+
+            tag_label = QLabel(f"{tag}  •  {size_gb:.1f} GB")
+            tag_label.setStyleSheet(f"font-size: 11px; color: {COLORS.text_muted}; background: transparent;")
+            info_layout.addWidget(tag_label)
+
+            row_layout.addLayout(info_layout, 1)
+
+            # Image-gen capability tag
+            cap_label = QLabel("Image-gen")
+            cap_label.setStyleSheet(tag_badge_style(get_tag_color("image-gen")))
+            cap_label.setFixedHeight(22)
+            row_layout.addWidget(cap_label)
+
+            row_layout.addSpacing(12)
+
+            # Chat button — emit with 🎨 prefix so chat_view can find it
+            chat_btn = QPushButton("Chat")
+            chat_btn.setCursor(Qt.PointingHandCursor)
+            chat_btn.setFixedSize(88, 34)
+            chat_btn.setStyleSheet(accent_button_style())
+            chat_btn.clicked.connect(
+                lambda checked, t=tag: self.open_chat_requested.emit(t)
+            )
+            row_layout.addWidget(chat_btn)
+
+            # Delete button
+            del_btn = QPushButton("Delete")
+            del_btn.setCursor(Qt.PointingHandCursor)
+            del_btn.setFixedSize(88, 34)
+            del_btn.setStyleSheet(danger_button_style())
+            del_btn.clicked.connect(
+                lambda checked, t=tag, n=cat_model.get("name", tag): self._delete_imagegen_model(t, n)
+            )
+            row_layout.addWidget(del_btn)
+
+            self._list_layout.addWidget(row)
+
         self._list_layout.addStretch()
 
     def _delete_model(self, name: str):
@@ -204,6 +277,58 @@ class ModelManager(QWidget):
             self.refresh()
         else:
             toast = ToastNotification(f"Failed to delete {name}: {msg}", "error", parent=self.window() or self)
+            toast.show_at(self.window() or self)
+
+    def _delete_imagegen_model(self, tag: str, display_name: str):
+        """Ask for confirmation before deleting an installed imagegen model."""
+        message = (
+            f'Confirm to delete the image model "{display_name}" and clear the storage it occupies.\n\n'
+            "This will remove the model file from local storage.\n\n"
+            "This action cannot be undone. Select Delete to continue, or Cancel to keep it installed."
+        )
+
+        self._delete_confirm_dialog = ConfirmDialog(
+            title="Confirm Model Deletion",
+            message=message,
+            confirm_text="Delete",
+            on_confirm=lambda t=tag: self._perform_delete_imagegen_model(t),
+            parent=self.window() or self,
+        )
+        self._delete_confirm_dialog.destroyed.connect(lambda *_: setattr(self, "_delete_confirm_dialog", None))
+        self._delete_confirm_dialog.show_centered(self.window() or self)
+
+    def _perform_delete_imagegen_model(self, tag: str):
+        """Delete an installed imagegen model's files from disk."""
+        import os
+        from app.services.imagegen_download import get_model_path_by_tag
+        from app import config
+
+        model_path = get_model_path_by_tag(tag)
+        models_dir = config.get_imagegen_models_dir()
+
+        removed = False
+        if model_path and os.path.isfile(model_path):
+            try:
+                os.remove(model_path)
+                removed = True
+            except Exception as e:
+                toast = ToastNotification(f"Failed to delete model file: {e}", "error", parent=self.window() or self)
+                toast.show_at(self.window() or self)
+                return
+
+        # Remove the .tag mapping file if it exists
+        if models_dir:
+            tag_file = os.path.join(models_dir, f"{tag}.tag")
+            if os.path.isfile(tag_file):
+                try:
+                    os.remove(tag_file)
+                except Exception:
+                    pass
+
+        if removed:
+            self.model_deleted.emit(tag)
+            self.refresh()
+            toast = ToastNotification(f"Image model \"{tag}\" deleted.", "success", parent=self.window() or self)
             toast.show_at(self.window() or self)
 
     def _on_clear_cache_click(self):
