@@ -56,82 +56,107 @@ class EngineDownloadWorker(QThread):
             resp.raise_for_status()
             release = resp.json()
 
-            # Find the Windows AVX2 zip asset (most common CPU instruction set)
-            asset_url = None
-            asset_name = None
-            for asset in release.get("assets", []):
-                name = asset.get("name", "").lower()
-                if "win" in name and "avx2" in name and name.endswith(".zip"):
-                    asset_url = asset.get("browser_download_url")
-                    asset_name = asset.get("name")
-                    break
+            assets = release.get("assets", [])
+            imagegen_dir = config.get_imagegen_dir()
+            os.makedirs(imagegen_dir, exist_ok=True)
 
-            # Fallback: any windows zip
-            if not asset_url:
-                for asset in release.get("assets", []):
+            has_gpu = _has_nvidia_gpu()
+
+            # ── Pick the right Windows build ─────────────────────────────────
+            # Priority: CUDA12 (GPU) → AVX2 (CPU) → any Windows zip
+            def _find_asset(keyword):
+                for asset in assets:
                     name = asset.get("name", "").lower()
-                    if "win" in name and name.endswith(".zip"):
-                        asset_url = asset.get("browser_download_url")
-                        asset_name = asset.get("name")
-                        break
+                    if "win" in name and keyword in name and name.endswith(".zip"):
+                        return asset.get("browser_download_url"), asset.get("name")
+                return None, None
+
+            if has_gpu:
+                asset_url, asset_name = _find_asset("cuda12")
+            else:
+                asset_url, asset_name = None, None
+
+            if not asset_url:
+                asset_url, asset_name = _find_asset("avx2")
+            if not asset_url:
+                asset_url, asset_name = _find_asset("")   # any win zip
 
             if not asset_url:
                 self.finished.emit(False, "Could not find a Windows binary in the latest release.")
                 return
 
-            # Download the zip
-            dl_resp = requests.get(asset_url, stream=True, timeout=30)
-            dl_resp.raise_for_status()
-            total = int(dl_resp.headers.get("content-length", 0))
+            # ── Helper: download a zip and extract all files flat ────────────
+            def _download_and_extract(url, name, total_offset=0, total_override=0):
+                dl = requests.get(url, stream=True, timeout=30)
+                dl.raise_for_status()
+                file_total = int(dl.headers.get("content-length", 0))
+                zip_path = os.path.join(imagegen_dir, name)
+                downloaded = 0
+                with open(zip_path, "wb") as f:
+                    for chunk in dl.iter_content(chunk_size=65536):
+                        if self._abort:
+                            f.close()
+                            try:
+                                os.remove(zip_path)
+                            except Exception:
+                                pass
+                            return False
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        # Emit combined progress when total_override is set
+                        if total_override:
+                            self.progress.emit(total_offset + downloaded, total_override)
+                        else:
+                            self.progress.emit(downloaded, file_total)
 
-            imagegen_dir = config.get_imagegen_dir()
-            os.makedirs(imagegen_dir, exist_ok=True)
-            zip_path = os.path.join(imagegen_dir, asset_name)
+                with zipfile.ZipFile(zip_path, "r") as zf:
+                    for member in zf.namelist():
+                        if member.endswith("/"):
+                            continue
+                        basename = os.path.basename(member)
+                        if not basename:
+                            continue
+                        target = os.path.join(imagegen_dir, basename)
+                        with zf.open(member) as src, open(target, "wb") as dst:
+                            shutil.copyfileobj(src, dst)
+                try:
+                    os.remove(zip_path)
+                except Exception:
+                    pass
+                return True
 
-            downloaded = 0
-            with open(zip_path, "wb") as f:
-                for chunk in dl_resp.iter_content(chunk_size=65536):
-                    if self._abort:
-                        f.close()
-                        os.remove(zip_path)
+            # ── Download main binary ─────────────────────────────────────────
+            ok = _download_and_extract(asset_url, asset_name)
+            if not ok:
+                self.finished.emit(False, "Download cancelled.")
+                return
+
+            # ── If CUDA build: also download cudart DLLs ─────────────────────
+            if has_gpu:
+                cudart_url, cudart_name = None, None
+                for asset in assets:
+                    name = asset.get("name", "").lower()
+                    if "cudart" in name and "win" in name and name.endswith(".zip"):
+                        cudart_url = asset.get("browser_download_url")
+                        cudart_name = asset.get("name")
+                        break
+                if cudart_url:
+                    ok = _download_and_extract(cudart_url, cudart_name)
+                    if not ok:
                         self.finished.emit(False, "Download cancelled.")
                         return
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    self.progress.emit(downloaded, total)
 
-            # Extract ALL files (exe + DLLs) — flatten into imagegen_dir
-            with zipfile.ZipFile(zip_path, "r") as zf:
-                found_exe = False
-                for member in zf.namelist():
-                    # Skip directories
-                    if member.endswith("/"):
-                        continue
-                    basename = os.path.basename(member)
-                    if not basename:
-                        continue
-                    target = os.path.join(imagegen_dir, basename)
-                    with zf.open(member) as src, open(target, "wb") as dst:
-                        shutil.copyfileobj(src, dst)
-                    # Track the main exe
-                    if basename.lower() in ("sd-cli.exe", "sd.exe"):
-                        found_exe = True
+            # ── Rename sd.exe → sd-cli.exe if needed ────────────────────────
+            sd_exe = os.path.join(imagegen_dir, "sd.exe")
+            target_exe = os.path.join(imagegen_dir, "sd-cli.exe")
+            if os.path.isfile(sd_exe) and not os.path.isfile(target_exe):
+                shutil.move(sd_exe, target_exe)
 
-                # If the exe is named sd.exe, rename to sd-cli.exe
-                sd_exe = os.path.join(imagegen_dir, "sd.exe")
-                target_exe = os.path.join(imagegen_dir, "sd-cli.exe")
-                if os.path.isfile(sd_exe) and not os.path.isfile(target_exe):
-                    shutil.move(sd_exe, target_exe)
-                    found_exe = True
-
-            # Clean up the zip
-            try:
-                os.remove(zip_path)
-            except Exception:
-                pass
+            found_exe = os.path.isfile(target_exe)
 
             if found_exe and config.is_imagegen_installed():
-                self.finished.emit(True, "Image generation engine installed successfully!")
+                backend = "GPU (CUDA)" if has_gpu else "CPU"
+                self.finished.emit(True, f"Image generation engine installed ({backend} mode).")
             else:
                 self.finished.emit(False, "Could not find sd-cli.exe in the downloaded archive.")
 
