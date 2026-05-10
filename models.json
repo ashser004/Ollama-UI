@@ -328,7 +328,7 @@
     {
       "name": "Realistic Vision V6",
       "tag": "realistic-vision-v6",
-      "size_gb": 1.8,
+      "size_gb": 2.0,
       "min_ram_gb": 4,
       "description": "Photorealistic image generation. Best for people, animals, landscapes, and real-world objects.",
       "capabilities": [
@@ -338,7 +338,7 @@
       "supports_files": false,
       "context_window": 0,
       "engine": "sd-cli",
-      "download_url": "https://huggingface.co/second-state/Realistic_Vision_V6.0_B1-GGUF/resolve/main/realisticVisionV60B1_v51HyperVAE-Q8_0.gguf"
+      "download_url": "https://huggingface.co/SG161222/Realistic_Vision_V6.0_B1_noVAE/resolve/main/Realistic_Vision_V6.0_NV_B1_fp16.safetensors"
     },
     {
       "name": "DreamShaper V8",
@@ -353,14 +353,14 @@
       "supports_files": false,
       "context_window": 0,
       "engine": "sd-cli",
-      "download_url": "https://huggingface.co/second-state/DreamShaper-8-GGUF/resolve/main/dreamshaper-8-Q8_0.gguf"
+      "download_url": "https://huggingface.co/Lykon/DreamShaper/resolve/main/DreamShaper_8_pruned.safetensors"
     },
     {
-      "name": "Anything V5",
-      "tag": "anything-v5",
-      "size_gb": 1.6,
+      "name": "SD 1.5 Base",
+      "tag": "sd-v1-5",
+      "size_gb": 2.0,
       "min_ram_gb": 4,
-      "description": "Anime, illustration, and cartoon-style images. High-quality with clean line art.",
+      "description": "The original Stable Diffusion 1.5. Lightweight, fast, and the most compatible base model for image generation.",
       "capabilities": [
         "image-gen"
       ],
@@ -368,7 +368,7 @@
       "supports_files": false,
       "context_window": 0,
       "engine": "sd-cli",
-      "download_url": "https://huggingface.co/second-state/Anything-V5-GGUF/resolve/main/anything-v5-Q8_0.gguf"
+      "download_url": "https://huggingface.co/Comfy-Org/stable-diffusion-v1-5-archive/resolve/main/v1-5-pruned-emaonly-fp16.safetensors"
     }
   ]
 }

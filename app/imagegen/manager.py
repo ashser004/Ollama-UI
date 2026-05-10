@@ -100,34 +100,29 @@ class EngineDownloadWorker(QThread):
                     downloaded += len(chunk)
                     self.progress.emit(downloaded, total)
 
-            # Extract — find sd-cli.exe in the zip
+            # Extract ALL files (exe + DLLs) — flatten into imagegen_dir
             with zipfile.ZipFile(zip_path, "r") as zf:
-                found = False
+                found_exe = False
                 for member in zf.namelist():
+                    # Skip directories
+                    if member.endswith("/"):
+                        continue
                     basename = os.path.basename(member)
+                    if not basename:
+                        continue
+                    target = os.path.join(imagegen_dir, basename)
+                    with zf.open(member) as src, open(target, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+                    # Track the main exe
                     if basename.lower() in ("sd-cli.exe", "sd.exe"):
-                        # Extract to imagegen_dir with the canonical name
-                        target = os.path.join(imagegen_dir, "sd-cli.exe")
-                        with zf.open(member) as src, open(target, "wb") as dst:
-                            shutil.copyfileobj(src, dst)
-                        found = True
-                        break
+                        found_exe = True
 
-                if not found:
-                    # Try extracting everything and hope it's there
-                    zf.extractall(imagegen_dir)
-                    # Look for the exe
-                    for root, dirs, files in os.walk(imagegen_dir):
-                        for fn in files:
-                            if fn.lower() in ("sd-cli.exe", "sd.exe"):
-                                src = os.path.join(root, fn)
-                                dst = os.path.join(imagegen_dir, "sd-cli.exe")
-                                if src != dst:
-                                    shutil.move(src, dst)
-                                found = True
-                                break
-                        if found:
-                            break
+                # If the exe is named sd.exe, rename to sd-cli.exe
+                sd_exe = os.path.join(imagegen_dir, "sd.exe")
+                target_exe = os.path.join(imagegen_dir, "sd-cli.exe")
+                if os.path.isfile(sd_exe) and not os.path.isfile(target_exe):
+                    shutil.move(sd_exe, target_exe)
+                    found_exe = True
 
             # Clean up the zip
             try:
@@ -135,7 +130,7 @@ class EngineDownloadWorker(QThread):
             except Exception:
                 pass
 
-            if found and config.is_imagegen_installed():
+            if found_exe and config.is_imagegen_installed():
                 self.finished.emit(True, "Image generation engine installed successfully!")
             else:
                 self.finished.emit(False, "Could not find sd-cli.exe in the downloaded archive.")
