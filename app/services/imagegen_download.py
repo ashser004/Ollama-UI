@@ -16,8 +16,8 @@ from app import config
 class ImageGenModelDownloadWorker(QThread):
     """Downloads an image-gen model GGUF file from a direct URL."""
 
-    progress = Signal(int, int, str)       # completed_bytes, total_bytes, status
-    finished_signal = Signal(bool, str)    # success, message
+    progress = Signal(float, float, str)    # completed_bytes, total_bytes, status
+    finished_signal = Signal(bool, str)     # success, message
 
     def __init__(self, model: dict, parent=None):
         super().__init__(parent)
@@ -56,7 +56,7 @@ class ImageGenModelDownloadWorker(QThread):
             total = int(resp.headers.get("content-length", 0))
 
             downloaded = 0
-            self.progress.emit(0, total, "downloading")
+            self.progress.emit(0.0, float(total), "downloading")
 
             with open(target_path, "wb") as f:
                 for chunk in resp.iter_content(chunk_size=131072):
@@ -72,7 +72,7 @@ class ImageGenModelDownloadWorker(QThread):
 
                     f.write(chunk)
                     downloaded += len(chunk)
-                    self.progress.emit(downloaded, total, "downloading")
+                    self.progress.emit(float(downloaded), float(total), "downloading")
 
             # Write the tag mapping so we can find the model by tag later
             with open(tag_map_path, "w", encoding="utf-8") as f:
@@ -96,7 +96,7 @@ class ImageGenModelDownloadWorker(QThread):
 def get_model_path_by_tag(tag: str) -> str | None:
     """Look up the local file path of an installed image-gen model by its catalog tag."""
     models_dir = config.get_imagegen_models_dir()
-    if not models_dir:
+    if not models_dir or not os.path.isdir(models_dir):
         return None
 
     # Check for a .tag mapping file

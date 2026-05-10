@@ -8,8 +8,8 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QFrame, QGridLayout,
                                 QGraphicsDropShadowEffect, QSizePolicy,
                                 QLineEdit, QComboBox)
-from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QFont, QCursor, QColor
+from PySide6.QtCore import Qt, Signal, Slot, QPropertyAnimation, Property, QEasingCurve
+from PySide6.QtGui import QFont, QCursor, QColor, QPainter, QBrush, QPen
 
 from app.theme import COLORS, accent_button_style, card_style, search_bar_style
 from app.ollama.api import OllamaAPI
@@ -73,6 +73,71 @@ class StatCard(QWidget):
 
     def set_value(self, value: str):
         self._value.setText(value)
+
+
+class ToggleSwitch(QWidget):
+    """Custom painted toggle switch with sliding circle animation."""
+
+    toggled = Signal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(48, 26)
+        self.setCursor(QCursor(Qt.PointingHandCursor))
+        self._checked = False
+        self._circle_x = 4.0  # starting x of the circle
+
+        self._anim = QPropertyAnimation(self, b"circle_x", self)
+        self._anim.setDuration(180)
+        self._anim.setEasingCurve(QEasingCurve.InOutCubic)
+
+    def _get_circle_x(self) -> float:
+        return self._circle_x
+
+    def _set_circle_x(self, val: float):
+        self._circle_x = val
+        self.update()
+
+    circle_x = Property(float, _get_circle_x, _set_circle_x)
+
+    def isChecked(self) -> bool:
+        return self._checked
+
+    def setChecked(self, on: bool):
+        self._checked = on
+        self._circle_x = 24.0 if on else 4.0
+        self.update()
+
+    def mousePressEvent(self, event):
+        self._checked = not self._checked
+        end = 24.0 if self._checked else 4.0
+        self._anim.stop()
+        self._anim.setStartValue(self._circle_x)
+        self._anim.setEndValue(end)
+        self._anim.start()
+        self.toggled.emit(self._checked)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        # Track background
+        if self._checked:
+            track_color = QColor(COLORS.tag_imagegen)
+        else:
+            track_color = QColor(COLORS.bg_hover)
+
+        p.setPen(QPen(QColor(COLORS.border_default), 1))
+        p.setBrush(QBrush(track_color))
+        p.drawRoundedRect(0, 0, 48, 26, 13, 13)
+
+        # Circle knob
+        knob_color = QColor("#ffffff") if self._checked else QColor(COLORS.text_muted)
+        p.setPen(Qt.NoPen)
+        p.setBrush(QBrush(knob_color))
+        p.drawEllipse(int(self._circle_x), 4, 18, 18)
+
+        p.end()
 
 
 class HomePage(QWidget):
@@ -154,14 +219,10 @@ class HomePage(QWidget):
 
         toggle_layout.addLayout(toggle_info, 1)
 
-        # Toggle switch button (styled as a pill)
-        self._imagegen_toggle_btn = QPushButton()
-        self._imagegen_toggle_btn.setFixedSize(48, 26)
-        self._imagegen_toggle_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        self._imagegen_toggle_btn.setCheckable(True)
+        # Toggle switch (custom painted sliding circle)
+        self._imagegen_toggle_btn = ToggleSwitch()
         self._imagegen_toggle_btn.setChecked(False)
-        self._update_toggle_style(False)
-        self._imagegen_toggle_btn.clicked.connect(self._on_imagegen_toggle)
+        self._imagegen_toggle_btn.toggled.connect(self._on_imagegen_toggle_raw)
         toggle_layout.addWidget(self._imagegen_toggle_btn)
 
         header_row.addWidget(toggle_card)
@@ -446,60 +507,30 @@ class HomePage(QWidget):
     # ─── Image Generation Toggle ──────────────────────────────────
 
     def _update_toggle_style(self, enabled: bool):
-        """Update the toggle button to look like a pill switch."""
-        if enabled:
-            self._imagegen_toggle_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                        stop:0 {COLORS.tag_imagegen}, stop:1 #f97316);
-                    border: none;
-                    border-radius: 13px;
-                    font-size: 9px;
-                    font-weight: 800;
-                    color: white;
-                    padding-left: 25px;
-                }}
-            """)
-            self._imagegen_toggle_btn.setText("ON")
-        else:
-            self._imagegen_toggle_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: {COLORS.bg_hover};
-                    border: 1px solid {COLORS.border_default};
-                    border-radius: 13px;
-                    font-size: 9px;
-                    font-weight: 800;
-                    color: {COLORS.text_muted};
-                    padding-right: 22px;
-                }}
-            """)
-            self._imagegen_toggle_btn.setText("OFF")
+        """Update the toggle switch visual state."""
+        self._imagegen_toggle_btn.setChecked(enabled)
 
-    def _on_imagegen_toggle(self):
-        """Handle the toggle click."""
-        from app import config as cfg
-        is_now_checked = self._imagegen_toggle_btn.isChecked()
-
-        if is_now_checked:
-            # First-time: need to download engine
+    def _on_imagegen_toggle_raw(self, is_checked: bool):
+        """Intercept raw toggle signal to handle engine download on first enable."""
+        if is_checked:
+            from app import config as cfg
             if not cfg.is_imagegen_installed():
-                self._imagegen_toggle_btn.setChecked(False)  # keep off until download finishes
+                # Revert toggle — download first
+                self._imagegen_toggle_btn.setChecked(False)
                 self._start_engine_download()
                 return
 
-            # Engine already installed — just enable
+            # Engine installed — enable
             self._imagegen_enabled = True
-            self._update_toggle_style(True)
             self._imagegen_status.setText("Enabled")
             self._imagegen_status.setStyleSheet(f"font-size: 10px; color: {COLORS.success}; background: transparent;")
             self.imagegen_toggled.emit(True)
         else:
-            # Disable
             self._imagegen_enabled = False
-            self._update_toggle_style(False)
             self._imagegen_status.setText("Disabled")
             self._imagegen_status.setStyleSheet(f"font-size: 10px; color: {COLORS.text_muted}; background: transparent;")
             self.imagegen_toggled.emit(False)
+
 
     def _start_engine_download(self):
         """Download the sd-cli engine binary for the first time."""

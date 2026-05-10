@@ -528,7 +528,8 @@ class MainWindow(QMainWindow):
 
         self._show_toast(f"Downloading {name}...", "info")
 
-        worker = ImageGenModelDownloadWorker(model)
+        # Parent=self keeps Qt ownership — prevents GC from destroying the running thread
+        worker = ImageGenModelDownloadWorker(model, parent=self)
         self._active_pulls[tag] = worker
 
         card = self._discover_page.get_card_by_tag(tag)
@@ -537,11 +538,8 @@ class MainWindow(QMainWindow):
             worker.finished_signal.connect(card.install_finished)
             card.set_downloading()
 
-        worker.progress.connect(
-            lambda c, t, s, _tag=tag: self._on_pull_progress(_tag, c, t, s)
-        )
         worker.finished_signal.connect(
-            lambda success, msg: self._on_imagegen_model_installed(success, msg, model)
+            lambda success, msg, _m=model: self._on_imagegen_model_installed(success, msg, _m)
         )
         worker.start()
 
@@ -550,8 +548,10 @@ class MainWindow(QMainWindow):
         tag = model.get("tag", "")
         name = model.get("name", tag)
 
-        self._active_pulls.pop(tag, None)
-        self._progress_cache.pop(tag, None)
+        # Wait for the thread to fully finish before removing reference
+        worker = self._active_pulls.pop(tag, None)
+        if worker and worker.isRunning():
+            worker.wait(3000)  # wait up to 3s for thread to finish
 
         if success:
             self._show_toast(f"{name} downloaded! Enable Image Generation on Home to use it.", "success")
